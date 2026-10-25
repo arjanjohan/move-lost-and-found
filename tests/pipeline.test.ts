@@ -473,7 +473,8 @@ describe('econia enumerator', () => {
 describe('auro enumerator', () => {
   // `indexed`: the account-transactions processor's watermark; `calls`: the user-transactions processor's (the same
   // unless given).
-  const auro = (indexed: string, calls = indexed) => fakeChain({ gql: (query, vars) => {
+  // `full`: the call touched a full page of accounts.
+  const auro = (indexed: string, calls = indexed, full = false) => fakeChain({ gql: (query, vars) => {
     if (query.includes('processor_status')) return { processor_status: [{ last_success_version: vars.p === 'user_transaction_processor' ? calls : indexed,
       last_transaction_timestamp: '2026-10-21T00:00:00' }] };
     if (query.includes('current_token_ownerships_v2')) return { current_token_ownerships_v2: [
@@ -483,8 +484,9 @@ describe('auro enumerator', () => {
     // One Auro call after the shutdown (a repayment), sent by someone else (addr 9); it touched position f1 and a pool.
     if (query.includes('user_transactions')) return { user_transactions: vars.a === '5067106504' && BigInt(vars.w as string) >= 5_100_000_000n
       ? [{ version: '5100000000', timestamp: '2026-05-07T16:32:48' }] : [] };
-    if (query.includes('account_transactions')) return { account_transactions: vars.v === '5100000000' && vars.after === ''
-      ? [{ account_address: addr(9) }, { account_address: addr('d0') }, { account_address: addr('f1') }] : [] };
+    if (query.includes('account_transactions')) return { account_transactions: vars.v === '5100000000'
+      ? (full ? Array.from({ length: 100 }, (_, i) => ({ account_address: addr(1000 + i) }))
+        : [{ account_address: addr(9) }, { account_address: addr('d0') }, { account_address: addr('f1') }]) : [] };
     throw new Error(query);
   } });
 
@@ -497,6 +499,10 @@ describe('auro enumerator', () => {
     expect(JSON.parse(r.cursor!)).toMatchObject({ v: '5100000000', repaid: { [addr('f1')]: '2026-05-07T16:32:48.000Z' } });
     // The repayment is remembered across runs.
     expect((await auroClosedEnumerator.run(auro('5200000000'), r.cursor)).candidates[0].hint).toMatchObject({ changed: { [addr('f1')]: '2026-05-07T16:32:48.000Z' } });
+  });
+
+  it('fails rather than miss accounts when a call touched a full page of them', async () => {
+    await expect(auroClosedEnumerator.run(auro('5200000000', '5200000000', true), undefined)).rejects.toThrow(/100\+ accounts/);
   });
 
   it('leaves a call either index has not reached for a later run', async () => {
