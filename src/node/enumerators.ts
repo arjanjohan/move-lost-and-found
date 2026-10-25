@@ -1,6 +1,6 @@
 // Chain-wide candidate enumeration and source-level sanity checks (node-only: keyed indexer use).
 import { iso } from '../shared/accounting.ts';
-import { gqlAll, mapLimit, normalizeAddress } from '../shared/chain.ts';
+import { mapLimit, normalizeAddress } from '../shared/chain.ts';
 import { AMNIS, AMNIS_WITHDRAWAL_COLLECTION } from '../shared/sources/amnis-withdrawals.ts';
 import { ANIMESWAP, ANIMESWAP_POOLS, animeswapLps, assetOf as animeswapAsset, pairOf } from '../shared/sources/animeswap-closed.ts';
 import { EARNIUM } from '../shared/sources/earnium-closed.ts';
@@ -240,8 +240,9 @@ const AURO_POSITION_CALLS = ['deposit_entry', 'deposit_apt_entry', 'deposit_coin
 const AURO_CALLS_QUERY = `query($a:bigint!,$w:bigint!){ user_transactions(where:{entry_function_contract_address:{_eq:"${AURO_ROUTER}"},
   entry_function_module_name:{_eq:"auro_router"}, entry_function_function_name:{_in:${JSON.stringify(AURO_POSITION_CALLS)}}, version:{_gt:$a, _lte:$w}},
   order_by:{version:asc}, limit:${PAGE}){ version timestamp } }`;
-const TOUCHED_QUERY = `query($v:bigint!,$after:String!){ account_transactions(where:{transaction_version:{_eq:$v}, account_address:{_gt:$after}},
-  order_by:{account_address:asc}, limit:${PAGE}){ account_address } }`;
+/** Unordered: ordering by account_address makes the indexer walk that index and time out (HTTP 408). One page is
+ *  enough, since a router call touches a handful of accounts; a full page is an error, never a silent cut. */
+const TOUCHED_QUERY = `query($v:bigint!){ account_transactions(where:{transaction_version:{_eq:$v}}, limit:${PAGE}){ account_address } }`;
 export const auroClosedEnumerator: Enumerator = {
   sourceId: 'auro-closed-positions',
   processor: 'token_v2_processor',
@@ -262,7 +263,8 @@ export const auroClosedEnumerator: Enumerator = {
       pages++;
       for (const t of page) {
         const time = new Date(t.timestamp + 'Z').toISOString();
-        const touched = await gqlAll(chain, TOUCHED_QUERY, { v: String(t.version) }, 'account_transactions', 'account_address');
+        const touched: { account_address: string }[] = (await chain.gql(TOUCHED_QUERY, { v: String(t.version) })).account_transactions;
+        if (touched.length >= PAGE) throw new Error(`Auro call at version ${t.version} touched ${PAGE}+ accounts; not all can be listed`);
         pages++;
         for (const r of touched) {
           const account = normalizeAddress(r.account_address);
