@@ -62,6 +62,9 @@ jobs:
           GEOMI_API_KEY: ${{ secrets.GEOMI_API_KEY }}
           PANORA_API_KEY: ${{ secrets.PANORA_API_KEY }}
           SOURCE: ${{ inputs.source }}
+          # Keyed Aptos requests per run (30–50 compute units each, about $0.50–0.60 per 100K; measured 2026-10-25). Local runs
+          # keep the code's 100K default.
+          REQUEST_CAP: '300000'
       - uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         if: always()
         with: { path: state, key: 'state-${{ github.run_id }}' }
