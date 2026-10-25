@@ -1057,22 +1057,28 @@ async function houstonWallets(chain: ChainReader, owner: string, version: string
   return new Map(all.filter(r => r.type.startsWith(`${HOUSTON_WALLET}<`)).map(r => [r.type.slice(HOUSTON_WALLET.length), JSON.stringify(r.data)]));
 }
 const houstonSenders = entrySenders('houston-closed-lp', HOUSTON_ADDS, async (chain, ledger, positions) => {
-  // What the pool would pay the positions (principal: burn and owed fees; stored coins are the positions' own), per pair
-  // and side, cannot exceed that pair's reserves (all fee tiers).
-  const owed = new Map<string, bigint>();
+  // What the pool pays the positions (principal: burn and owed fees; stored coins are the positions' own), per pair and
+  // side, cannot exceed that pair's reserves (all fee tiers). A position the pool is short for is blocked and pays
+  // nothing, so what it is owed does not count here.
+  const paid = new Map<string, bigint>();
   for (const p of positions.filter(p => p.positionKind === 'principal')) {
     const key = `${p.locator.slice(0, p.locator.lastIndexOf('#'))}|${p.asset}`;
-    owed.set(key, (owed.get(key) ?? 0n) + BigInt(p.grossClaim[0].raw));
+    paid.set(key, (paid.get(key) ?? 0n) + BigInt(p.expectedPayout[0]?.raw ?? 0));
   }
-  let ok = true, pools = 0;
+  const over: string[] = [];
+  let pools = 0;
   for (const pair of new Set(positions.map(p => p.locator.slice(0, p.locator.lastIndexOf('#'))))) {
     const state = await chain.resource(HOUSTON_POOLS, `${HOUSTON}::pool::Pool${pair}`, ledger.version);
     pools++;
     const [x, y] = pairOf(`P${pair}`);
-    const reserve = (side: string) => (state.fee_tier.data as any[]).reduce((t, e) => t + BigInt(e.value[side].value), 0n);
-    ok &&= (owed.get(`${pair}|${animeswapAsset(x)}`) ?? 0n) <= reserve('reserve_x') && (owed.get(`${pair}|${animeswapAsset(y)}`) ?? 0n) <= reserve('reserve_y');
+    for (const [side, coin] of [['reserve_x', x], ['reserve_y', y]]) {
+      const reserve = (state.fee_tier.data as any[]).reduce((t, e) => t + BigInt(e.value[side].value), 0n);
+      const p = paid.get(`${pair}|${animeswapAsset(coin)}`) ?? 0n;
+      if (p > reserve) over.push(`${pair} ${side}: ${p} > ${reserve}`);
+    }
   }
-  return { check: 'amounts found <= pool reserves, per pair and side', ok, detail: `${pools} pairs with positions` };
+  return { check: 'amounts payable <= pool reserves, per pair and side', ok: over.length === 0,
+    detail: `${pools} pairs with positions${over.length ? `; over: ${over.join('; ')}` : ''}` };
 });
 export const houstonClosedEnumerator: Enumerator = {
   ...houstonSenders,

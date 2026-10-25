@@ -594,14 +594,18 @@ describe('canopy frozen enumerator', () => {
 });
 
 describe('houston enumerator', () => {
-  it('checks what the pool pays against its reserves, leaving out coins stored in the positions', async () => {
+  it('checks what the pool pays against its reserves, leaving out coins stored in the positions and positions it is short for', async () => {
     const PAIR = '<0x1::aptos_coin::AptosCoin, 0x2::c::D>';
     const c = fakeChain({ resource: () => ({ fee_tier: { data: [{ key: '0', value: { reserve_x: { value: '100' }, reserve_y: { value: '50' } } }] } }) });
-    const p = (kind: string, asset: string, raw: string) => ({ locator: `${PAIR}#1`, positionKind: kind, asset, grossClaim: [{ asset, raw }] } as unknown as Position);
+    // `paid` defaults to what the position is owed; a blocked position (reserve_short) pays nothing.
+    const p = (kind: string, asset: string, raw: string, paid = raw) => ({ locator: `${PAIR}#1`, positionKind: kind, asset,
+      grossClaim: [{ asset, raw }], expectedPayout: paid === '0' ? [] : [{ asset, raw: paid }] } as unknown as Position);
     const APT_FA = '0x000000000000000000000000000000000000000000000000000000000000000a';
-    const positions = [p('principal', APT_FA, '100'), p('principal', '0x2::c::D', '50'), p('fees', '0x2::c::D', '1000')];
+    const positions = [p('principal', APT_FA, '100'), p('principal', '0x2::c::D', '50'), p('fees', '0x2::c::D', '1000'), p('principal', '0x2::c::D', '1000', '0')];
     expect((await houstonClosedEnumerator.sanity!(c, { version: '1', timestampSecs: 0 }, positions)).ok).toBe(true);
-    expect((await houstonClosedEnumerator.sanity!(c, { version: '1', timestampSecs: 0 }, [...positions, p('principal', '0x2::c::D', '1')])).ok).toBe(false);
+    const over = await houstonClosedEnumerator.sanity!(c, { version: '1', timestampSecs: 0 }, [...positions, p('principal', '0x2::c::D', '1')]);
+    expect(over.ok).toBe(false);
+    expect(over.detail).toContain(`${PAIR} reserve_y: 51 > 50`);
   });
 
   it('lists everyone who added liquidity, and dates the pairs a liquidity call after the closure changed', async () => {
