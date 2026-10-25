@@ -16,6 +16,9 @@ export type InactiveHint = { pools: string[]; version?: number };
 const LAST_REWARD_QUERY = `query($p:String!){ delegated_staking_activities(where:{pool_address:{_eq:$p},
   event_type:{_eq:"0x1::stake::DistributeRewards"}}, order_by:{transaction_version:desc}, limit:1){ transaction_version } }`;
 
+// A pool's first indexed activity: when it began taking stake (the indexer's delegation history starts at genesis).
+const FIRST_ACTIVITY_QUERY = `query($p:String!){ delegated_staking_activities(where:{pool_address:{_eq:$p}}, order_by:{transaction_version:asc}, limit:1){ transaction_version } }`;
+
 const LAST_ADD_QUERY = `query($d:String!,$p:String!){ delegated_staking_activities(where:{delegator_address:{_eq:$d}, pool_address:{_eq:$p},
   event_type:{_in:["0x1::delegation_pool::AddStake","0x1::delegation_pool::AddStakeEvent"]}}, order_by:{transaction_version:desc}, limit:1){ transaction_version } }`;
 
@@ -25,12 +28,15 @@ async function blockTime(ctx: ReadContext, version: number): Promise<number | nu
   return ts ? Math.floor(Date.parse(ts + 'Z') / 1000) : null;
 }
 
-/** Whether the pool's validator is inactive, and when it last earned rewards (null if no reward is indexed). */
+/** Whether the pool's validator is inactive, and since when its stake has earned nothing: its last reward, or, for a
+ *  pool that never earned one (none in the indexer's history, which starts at genesis), its first activity. Null when
+ *  neither is indexed. */
 function poolInfo(ctx: ReadContext, pool: string) {
   return once(ctx, `inactive-pool:${pool}:${ctx.ledger.version}`, async () => {
     const [state] = await ctx.chain.view('0x1::stake::get_validator_state', [pool], [], ctx.ledger.version);
     if (Number(state) !== VALIDATOR_INACTIVE) return { inactive: false, stoppedAt: null as number | null };
-    const event = (await ctx.chain.gql(LAST_REWARD_QUERY, { p: pool })).delegated_staking_activities[0];
+    const event = (await ctx.chain.gql(LAST_REWARD_QUERY, { p: pool })).delegated_staking_activities[0]
+      ?? (await ctx.chain.gql(FIRST_ACTIVITY_QUERY, { p: pool })).delegated_staking_activities[0];
     return { inactive: true, stoppedAt: event ? await blockTime(ctx, Number(event.transaction_version)) : null };
   });
 }

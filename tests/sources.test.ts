@@ -251,10 +251,11 @@ describe('thala THL', () => {
 
 describe('delegation with an inactive validator', () => {
   const STOP = NOW - 200 * 86_400;
-  const chain = (opts: { state?: number; active?: string; pending?: string; rewards?: boolean; addedAt?: number }) => fakeChain({
+  const chain = (opts: { state?: number; active?: string; pending?: string; rewards?: boolean; firstActivity?: boolean; addedAt?: number }) => fakeChain({
     view: fn => fn === '0x1::stake::get_validator_state' ? [String(opts.state ?? 4)]
       : fn === '0x1::delegation_pool::get_stake' ? [opts.active ?? '5000000000', '0', opts.pending ?? '0'] : [],
     gql: (query, vars) => query.includes('DistributeRewards') ? { delegated_staking_activities: opts.rewards === false ? [] : [{ transaction_version: 10 }] }
+      : query.includes('order_by:{transaction_version:asc}') ? { delegated_staking_activities: opts.firstActivity === false ? [] : [{ transaction_version: 10 }] }
       : query.includes('AddStake') ? { delegated_staking_activities: opts.addedAt ? [{ transaction_version: 20 }] : [] }
       : query.includes('block_metadata_transactions') ? { block_metadata_transactions: [{ timestamp: new Date(((vars as any).v === '20' ? opts.addedAt! : STOP) * 1000).toISOString().slice(0, -1) }] }
       : { current_delegator_balances: [] },
@@ -271,8 +272,12 @@ describe('delegation with an inactive validator', () => {
     expect((await read({ addedAt: later })).positions[0].claimableSince).toBe(new Date(later * 1000).toISOString());
   });
 
-  it('leaves the age unknown when no reward is indexed for the pool', async () => {
-    expect((await read({ rewards: false })).positions[0].ageBasis).toBe('unknown');
+  it('dates stake in a pool that never earned a reward from the pool\'s first activity (or a later add)', async () => {
+    expect((await read({ rewards: false })).positions[0]).toMatchObject({ ageBasis: 'protocol_closure', claimableSince: new Date(STOP * 1000).toISOString() });
+    const later = NOW - 100 * 86_400;
+    expect((await read({ rewards: false, addedAt: later })).positions[0].claimableSince).toBe(new Date(later * 1000).toISOString());
+    // Nothing indexed for the pool at all: unknown.
+    expect((await read({ rewards: false, firstActivity: false })).positions[0].ageBasis).toBe('unknown');
   });
 
   it('blocks stake below the 10 APT unlock minimum', async () => {

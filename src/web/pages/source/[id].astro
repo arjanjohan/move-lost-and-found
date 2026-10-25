@@ -41,7 +41,7 @@ const basisLabel: Record<string, string> = {
       <div class="card"><span class="muted">Small, not verified</span><b>{count(t.unverified.positions)}</b><span class="muted">positions below the verification threshold, from the indexer only; not in any total</span></div>
     )}
     {(t.byStatus.contract_held?.positions ?? 0) > 0 && (
-      <div class="card"><span class="muted">Held by a contract</span><b>{usd((owed.contract_held ?? t.byStatus.contract_held).usd)}</b><span class="muted">{count(t.byStatus.contract_held.positions)} positions held by a resource account or an object, which no person signs for; never in the headline</span></div>
+      <div class="card"><span class="muted">Held by a contract</span><b>{usd((owed.contract_held ?? t.byStatus.contract_held).usd)}</b><span class="muted">{count(t.byStatus.contract_held.positions)} positions held by a resource account or an object, which no person signs for</span></div>
     )}
     {t.byStatus.unknown.positions > 0 && (
       <div class="card"><span class="muted">Not counted (unknown)</span><b>{usd(owed.unknown.usd)}</b><span class="muted">{count(t.byStatus.unknown.positions)} positions whose payout could not be confirmed (a check that could not run, or one the source cannot settle, such as a withdrawal never simulated){s.ownerRules ? '' : ', or held by a resource account or an object (classified before those were counted apart)'}</span></div>
