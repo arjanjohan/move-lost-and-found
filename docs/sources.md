@@ -10,27 +10,27 @@ Measurement runs use a fresh local state (`pnpm snapshot --source <id> --state <
 
 | Source | Shape | Status rule | Measured (2026-10-18) | Sample simulation |
 |---|---|---|---|---|
-| `native-delegation` | indexer staking table | ended position (unlock done) | headline $680K, 7,163 owners | 20/20 ok, payout = expected; 2 owners need gas |
-| `delegation-inactive-validator` | all pools → inactive validators → active-stake delegators | ended position (validator left the set); age = last reward epoch | headline $7.41M, 4,017 owners (1,451 ≥ $10); top wallet 12.6% | unlock 10/10 exact; 2 need gas (withdraw step: see native-delegation early-withdraw sample) |
-| `thala-unstake` | entry-function senders | ended position (request matured) | headline $27.5K, 925 owners | 10/10 ok, payout = expected; 3 need gas |
-| `kofi-withdrawals` | entry-function senders | ended position; protocol winding down | headline $12.8K, 287 owners | 10/10 ok, payout = expected; 1 needs gas |
-| `amnis-withdrawals` | collection owners (`Amnis Withdrawal Tokens`) | ended position (lockup passed) | headline $938K, 397 owners; one wallet = 88% | 10/10 ok, payout = expected; 1 needs gas |
-| `thala-vethl-expired` | entry-function senders (`vetoken scripts::lock`, `farming_vesting::convert_to_vethl`) | ended position (lock expired) | headline $13.7K, 4,852 owners (97 ≥ $10) | 10/10 ok, payout = expected |
-| `thala-vesting-matured` | entry-function senders (`farming_vesting::start_vesting`) | ended position (vesting reached end_sec) | headline $6.2K, 2,642 owners (16 ≥ $10) | 10/10 ok, payout = expected; 1 needs gas |
-| `trufin-unlocks` | one global table (`staker::Unlocks`) | ended position (request claimable); off-whitelist → team_gated | 1 request, $1.8K, 85 days old (not yet in headline) | 1/1 ok, payout = expected |
-| `movement-native-delegation` | indexer staking table (Movement indexer) | ended position (unlock done) | headline $2.2K, 57 owners (MOVE $0.0073) | 10/10 ok, payout = expected |
+| `native-delegation` | indexer staking table | ended position (unlock done) | $680K left behind 90+ days, 7,163 owners | 20/20 ok, payout = expected; 2 owners need gas |
+| `delegation-inactive-validator` | all pools → inactive validators → active-stake delegators | ended position (validator left the set); age = last reward epoch | $7.41M left behind 90+ days, 4,017 owners (1,451 ≥ $10); top wallet 12.6% | unlock 10/10 exact; 2 need gas (withdraw step: see native-delegation early-withdraw sample) |
+| `thala-unstake` | entry-function senders | ended position (request matured) | $27.5K left behind 90+ days, 925 owners | 10/10 ok, payout = expected; 3 need gas |
+| `kofi-withdrawals` | entry-function senders | ended position; protocol winding down | $12.8K left behind 90+ days, 287 owners | 10/10 ok, payout = expected; 1 needs gas |
+| `amnis-withdrawals` | collection owners (`Amnis Withdrawal Tokens`) | ended position (lockup passed) | $938K left behind 90+ days, 397 owners; one wallet = 88% | 10/10 ok, payout = expected; 1 needs gas |
+| `thala-vethl-expired` | entry-function senders (`vetoken scripts::lock`, `farming_vesting::convert_to_vethl`) | ended position (lock expired) | $13.7K left behind 90+ days, 4,852 owners (97 ≥ $10) | 10/10 ok, payout = expected |
+| `thala-vesting-matured` | entry-function senders (`farming_vesting::start_vesting`) | ended position (vesting reached end_sec) | $6.2K left behind 90+ days, 2,642 owners (16 ≥ $10) | 10/10 ok, payout = expected; 1 needs gas |
+| `trufin-unlocks` | one global table (`staker::Unlocks`) | ended position (request claimable); off-whitelist → team_gated | 1 request, $1.8K, 85 days old (not yet 90 days) | 1/1 ok, payout = expected |
+| `movement-native-delegation` | indexer staking table (Movement indexer) | ended position (unlock done) | $2.2K left behind 90+ days, 57 owners (MOVE $0.0073) | 10/10 ok, payout = expected |
 | `movement-inactive-validator` | all pools → inactive validators (Movement) | ended position | none: no inactive Movement pool holds active stake | — |
 | `kofi-receipts` | primary stores holding kAPT / stkAPT | stranded receipt only if no usable market (Panora) | 0 positions: both tokens have usable markets in every bucket (97–100% of redemption) | request step 38/38 ok; finalize = kofi-withdrawals sample |
 | `merkle-mklp` | stores holding MKLP (Coin + paired FA) | wound down; exits deprecated → team_gated | 9,152 team_gated positions (9,088 owners), 4 recoverable; MKLP units, unpriced | whitelisted release 4/4 ok; every team_gated sample aborts as classified |
 | `merkle-vemkl` | collection owners (veMKL) | wound down; unlock works any time → recoverable | 1,340 locks (unpriced: ~496K MKL, 74K PreMKL, 15K esMKL) | 10/10 ok, payout = expected (PreMKL paid as MKL) |
-| `tortuga-tickets` | entry-function senders → per-user `TicketStore` | ended position (cooldown passed); reserve-queued tickets blocked | headline $12.2K, 818 owners; blocked $172 | recoverable 10/10 exact; blocked 4/4 abort `EFUND_NOT_AVAILABLE_YET` as predicted |
+| `tortuga-tickets` | entry-function senders → per-user `TicketStore` | ended position (cooldown passed); reserve-queued tickets blocked | $12.2K left behind 90+ days, 818 owners; blocked $172 | recoverable 10/10 exact; blocked 4/4 abort `EFUND_NOT_AVAILABLE_YET` as predicted |
 
 Native delegation and Thala are documented in [phase0-report.md](https://github.com/arjanjohan/move-lost-and-found/blob/main/docs/phase0-report.md).
 
 **Owner rule (all sources):** after each read, the pipeline classifies the owner once and memoizes it.
 - An account with a zero authentication key is a **resource account**, controlled by a program.
 - An address with `ObjectCore` is an **object**, also when it carries an account resource too (objects do, to hold coins, with their own address as the key; nobody holds a key for an object address). Until 2026-10-22 such objects were taken for ordinary accounts; Canopy's rsETH pre-deposit holder was one.
-- Positions held by either type stay listed and count apart as `contract_held` (decided 2026-10-22), with blocker `unsupported_owner`, so they never reach the headline.
+- Positions held by either type stay listed and count apart as `contract_held` (decided 2026-10-22), with blocker `unsupported_owner`.
 - The cost is 2 requests per owner (account and `ObjectCore`), ever.
 
 Each source page also states the largest single wallet's share of its 90+ day total. No address is published.
@@ -53,7 +53,7 @@ Each source page also states the largest single wallet's share of its 90+ day to
   - A ticket counts once `unlock_timestamp` (seconds) has passed.
   - Expected payout = `apt_amount − withdraw_fees`.
   - `GlobalConfig.gateway_config.withdrawals_paused` → `blocked` (`paused`).
-- **Result:** 504 unlocked tickets never finalized. $12.9K recoverable now, $12.8K waiting ≥ 90 days. 287 headline owners, 23 of them with ≥ $10. 443 tickets are under $1.
+- **Result:** 504 unlocked tickets never finalized. $12.9K recoverable now, $12.8K waiting ≥ 90 days. 287 owners with positions ≥ 90 days, 23 of them with ≥ $10. 443 tickets are under $1.
 - **Sanity:** the matured tickets found total 16.8K APT. `vault::get_unlocked_apt_balance` holds 289.5K APT (5.8% coverage), so payout is covered.
   - This is informational, not a hard ceiling: tickets can also be paid from APT still unlocking from validators.
 - **Recovery:** `gateway::finalize_withdrawals_entry([ticket_id])`. 10 of 10 sampled simulations paid exactly the expected amount into the owner's APT primary store.
@@ -86,7 +86,7 @@ Each source page also states the largest single wallet's share of its 90+ day to
   - `withdrawal::WithdrawalToken` gives `amapt.value` and `locked_until_secs`.
   - Matured tokens count, payout amAPT 1:1 in APT (confirmed by simulation).
 - **Result (with the owner rule):** $944K recoverable, of which **$938K is aged ≥ 90 days**, across 397 owners (267 with ≥ $10).
-  - The largest wallet, an ordinary account with 415 transactions, holds 1.08M APT matured since 2025-11-26: **88% of the headline**.
+  - The largest wallet, an ordinary account with 415 transactions, holds 1.08M APT matured since 2025-11-26: **88% of the value left behind 90+ days**.
   - 4 positions (~$304K, mostly one resource account at 388K APT) are held by contracts (`unsupported_owner`; `contract_held` since 2026-10-22).
 - **Sanity:** matured tokens found = 1,634,658 APT, which is **99.08%** of `withdrawal::total_pending_withdrawal` (all open tokens, matured or not).
 - **Recovery:** `router::withdraw_entry(token)`. 10 of 10 sampled simulations, including the largest token, paid exactly the expected amount.
@@ -133,10 +133,10 @@ Each source page also states the largest single wallet's share of its 90+ day to
 - **Read:** `delegation_pool::get_stake(pool, owner)`, with the validator state re-read once per pool per run.
 - **Age (`protocol_closure`):** the pool's last `0x1::stake::DistributeRewards` event (block time), or the owner's last `AddStake` in that pool if later, since stake added to an idle pool is idle only from then.
   - Memoized per (owner, pool, amount, stop time).
-  - Pools with no reward event get `unknown` age and are not in the headline.
+  - A pool that never earned a reward (none indexed; the indexer's delegation history starts at genesis) has earned nothing since it began: its stake is dated from the pool's first indexed activity, or from a later add. Only a pool with no indexed activity at all keeps an `unknown` age.
 - **Blocked:** unlock aborts with `EDELEGATOR_PENDING_INACTIVE_BALANCE_TOO_LOW` when the delegator's resulting pending_inactive would be below 10 APT (`MIN_COINS_ON_SHARES_POOL`). Such positions are `blocked` (`below_unlock_minimum`): add stake to reach 10 APT, then unlock and withdraw everything. That is 12 positions, $2.
 - **Result:** $11.0M claimable now. **$7.41M has been idle ≥ 90 days**, across 4,017 owners (1,451 with ≥ $10).
-  - The largest wallet holds 12.6% of the headline.
+  - The largest wallet holds 12.6% of the value left behind 90+ days.
   - ≥ 180 days is only $96K, because most of the value sits in pools that stopped in 2026.
   - 3 positions held by resource accounts ($359K) are `unknown`.
   - 2,123 positions ($313K) have unknown age.
@@ -155,7 +155,7 @@ Each source page also states the largest single wallet's share of its 90+ day to
 - **Age:** the moment the request's pool lockup cycle (`olc`) ended, i.e. the first version whose `DelegationPool.observed_lockup_cycle.index > olc`.
   - Found by binary search over archive reads; valid because that index only grows.
   - Memoized per (pool, olc).
-- **Result (2026-10-18):** 1 pending request, 2,411.4 APT ($1.8K), claimable since 2026-07-25, whitelisted. It enters the 90-day headline after 2026-10-23.
+- **Result (2026-10-18):** 1 pending request, 2,411.4 APT ($1.8K), claimable since 2026-07-25, whitelisted. It counts as left behind 90+ days from 2026-10-23.
 - **Cost:** 49 requests on the first run, about 10 after that.
 - **Recovery:** `staker::withdraw(nonce)`. Simulation 1/1, exact payout.
 
@@ -196,7 +196,7 @@ Each source page also states the largest single wallet's share of its 90+ day to
   - Aborts in the strategy: `EINSUFFICIENT_BALANCE` (WETH.e-13, LBTC, four Meridian LP vaults), `EUNKNOWN_STRATEGY` (seven Meridian LP vaults, not supported by the router). `blocked`.
   - Vaults with no holder to simulate with (MOVE-1, SolvBTC, rsETH-32 and other dust vaults): `unknown`.
   - The check is a table in the source; re-simulate when Canopy changes anything.
-- **Held by a contract:** the rsETH vault's shares (233.5 rsETH, ~$635K) and the rsETH-WETH LP vault's are held by Canopy's pre-deposit contract (`0xbc59…::single_asset_base_deployer` / dual-asset), on behalf of contributors who claim with `claim_relevant_assets_with_move_address`. Counted as `contract_held` (decided 2026-10-22): shown with the vault's other holdings, never in the headline. rsETH is priced with CoinGecko's `kelp-dao-restaked-eth`, whose Movement platform address is this asset. Contributions never claimed there are a separate lead.
+- **Held by a contract:** the rsETH vault's shares (233.5 rsETH, ~$635K) and the rsETH-WETH LP vault's are held by Canopy's pre-deposit contract (`0xbc59…::single_asset_base_deployer` / dual-asset), on behalf of contributors who claim with `claim_relevant_assets_with_move_address`. Counted as `contract_held` (decided 2026-10-22): shown with the vault's other holdings. rsETH is priced with CoinGecko's `kelp-dao-restaked-eth`, whose Movement platform address is this asset. Contributions never claimed there are a separate lead.
 - **Rehearsal (2026-10-21, Movement's public endpoints):**
   - Sized from aggregates (staked shares in the staking pool's stores plus wallet shares, valued with `shares_to_amount`): stakers and wallets hold **~1.22M MOVE (~$9.2K at $0.00755)**, all in vaults whose withdrawal aborts, so `blocked`. Recoverable and priced: ~$15 (sUSDa). The rest is Meridian and LS05 LP tokens, which have no price here.
   - The source's read on every wallet holder plus 200 stakers: positions in 30 vaults, each with the status above; owners that are contracts (the pre-deposit holders) are `contract_held` through the owner check.
@@ -246,7 +246,7 @@ Each source page also states the largest single wallet's share of its 90+ day to
 - **Hyperion fridge** (delayed LP withdrawals): `fridge::asset_unclaimed_all()` reports 4.70 APT in total across all users, about $3.50. Too small to maintain.
 - **Superposition** (Aptos lending): not left behind. Its markets are unpaused and still used (last deposit 2026-10-14). Operator-signed packets are its normal app flow, not closure evidence.
 - **Validator-owned stake pools** (not delegation pools; re-sized 2026-10-20, 378 pools):
-  - Two resource-account pools outside the validator set hold **14.4M and 4.1M APT** of active stake, with lockups ending 2026-10-31 and 10-22. They look like institutional `staking_contract`/vesting pools between validator setups, not abandoned funds, and would roughly double the headline. Not counted without evidence of abandonment.
+  - Two resource-account pools outside the validator set hold **14.4M and 4.1M APT** of active stake, with lockups ending 2026-10-31 and 10-22. They look like institutional `staking_contract`/vesting pools between validator setups, not abandoned funds, and would roughly double the value left behind 90+ days. Not counted without evidence of abandonment.
   - Active validators hold small withdrawable inactive stakes (334–3,410 APT each): normal operator flow.
   - About 30 small pools outside the set hold 1.5–855 APT each, with lockups that ended in 2023–2026. Owners are `staking_contract` or vesting resource accounts (the owner rule makes them `contract_held`); tracing each to its staker or shareholders is not worth it at this size.
 - **Moar farming rewards:** paid in Moar's own token, which has no CoinGecko price, so the value would be unpriced. Skipped.
@@ -271,7 +271,7 @@ Each source page also states the largest single wallet's share of its 90+ day to
 - When every bucket is usable, the run skips reading holders altogether: 124 requests instead of ~11.7K. If the markets dry up, holders are read again and those without a usable market become `recoverable` (stranded).
 - The verdicts are published in `snapshot.markets`; the check page applies them without calling Panora.
 - **History:** before the market test, every position was `unknown` (`market_check_unavailable`).
-- **Why it was added before the test:** Kofi is winding down (evidenced). kAPT and stkAPT can still be redeemed for APT through a withdrawal ticket. They count as left behind only if stranded, and no quote provider is configured, so every position is `unknown` (`market_check_unavailable`) and never reaches the headline. Holders who check an address still see that they must redeem.
+- **Why it was added before the test:** Kofi is winding down (evidenced). kAPT and stkAPT can still be redeemed for APT through a withdrawal ticket. They count as left behind only if stranded, and no quote provider is configured, so every position is `unknown` (`market_check_unavailable`) and not counted. Holders who check an address still see that they must redeem.
 - **Enumeration:** primary stores (the only stores entry functions spend) holding kAPT or stkAPT, keyset-paged on `storage_id`. 117 pages, 8,063 owners. The hint carries each store's last change version.
 - **Read:** `primary_fungible_store::balance`.
   - Redemption value: kAPT 1:1 in APT; stkAPT × `rewards_manager::get_exchange_rate` / 1e8 (1.0856 on 2026-10-19).
@@ -410,7 +410,7 @@ Each source page also states the largest single wallet's share of its 90+ day to
 - **What:** supply left in Aave v3's Aptos reserves once Aave freezes them. An Aave governance proposal (ARFC, filed 2026-07-29) winds down the Aptos deployment by freezing every reserve. A frozen reserve takes no new supply or borrows; lenders can still withdraw.
 - **State (2026-10-20):** all 4 reserves (USDt, APT, sUSDe, USDC) are live, so the source counts nothing. Each run reads the reserve flags first (one view) and does nothing else while none is frozen. Supplied: ~456K APT (~6K borrowed), ~21K USDC, ~18.6K USDt, ~2K sUSDe.
 - **Rules (decided 2026-10-20, option A):** same as `echelon-frozen-markets`. A frozen reserve counts, aged from its freeze. A supplier with any Aave debt (`user_logic::get_user_account_data` total debt > 0) counts for nothing (R4); its frozen supply is shown on the check page as `blocked` (`has_debt`).
-- **Freeze date:** the indexer's `events` table is deprecated, so the first version with the frozen bit (bit 57 of the reserve configuration) is found by binary search on the archive node, from version 7,694,000,000 (every reserve live), and dated by that transaction. ~30 archive reads once per reserve: the enumerator dates it, keeps the date in its cursor and passes it to each holder in the hint. If it cannot be dated, or the archive lookup fails, the amount still counts but the age is unknown, so the position stays out of the headline. The date is then null in the hint and retried each run; the run that dates it changes the hints, so its holders are re-read at once. Assumes a reserve stays frozen once frozen.
+- **Freeze date:** the indexer's `events` table is deprecated, so the first version with the frozen bit (bit 57 of the reserve configuration) is found by binary search on the archive node, from version 7,694,000,000 (every reserve live), and dated by that transaction. ~30 archive reads once per reserve: the enumerator dates it, keeps the date in its cursor and passes it to each holder in the hint. If it cannot be dated, or the archive lookup fails, the amount still counts but the age is unknown until then. The date is then null in the hint and retried each run; the run that dates it changes the hints, so its holders are re-read at once. Assumes a reserve stays frozen once frozen.
 - **Read:** `a_token_factory::balance_of(owner, aToken)` per frozen reserve. Payout = min(balance, pro-rata share of the reserve's cash: balance × available liquidity / aToken total supply). Paused or inactive reserves are `blocked`. The APT reserve pays fungible APT (0xa), the paired asset of the APT coin, so it is valued as APT.
 - **Recovery:** `supply_logic::withdraw(asset, 2^256 − 1, owner)` withdraws everything (simulated on a live reserve: paid exactly `balance_of`) while the reserve's cash covers the balance; the position still counts only the pro-rata share. When the cash is short of the balance, the step withdraws the pro-rata amount instead.
 - **Enumeration:** holders of frozen reserves' aTokens, from each aToken's `token_base` user table (a SmartTable) read bucket by bucket from the fullnode. The indexer's copy misses buckets (sUSDe: 0 of 5). A run fails unless every holder is read. Each holder's hint is its scaled balances in the frozen aTokens and in every debt token, so supply, withdrawals, borrows and repayments trigger a re-read, and accruing interest does not.

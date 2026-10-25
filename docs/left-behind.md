@@ -42,14 +42,14 @@ The market test:
 
 Each position has a `claimableSince` and an `ageBasis`, taken from the first one available:
 
-| `ageBasis` | Meaning | Headline |
+| `ageBasis` | Meaning | Counts toward left behind 90+ days |
 |---|---|---|
 | `onchain_maturity` | On-chain unlock, maturity, lock expiry or vesting release time | yes |
 | `protocol_closure` | Effective time of protocol closure or deprecation, with evidence | yes |
 | `position_interaction` | Last protocol interaction **with this position** (its object, ticket or profile); never general wallet activity | no — estimated; shown separately unless the source documents it as a conservative bound |
 | `unknown` | None of the above | no — excluded from all age buckets |
 
-The age buckets are cumulative: **≥ 30, ≥ 90, ≥ 180 days**. The headline uses ≥ 90 days.
+The age buckets are cumulative: **≥ 30, ≥ 90, ≥ 180 days**.
 
 ## Accounting
 
@@ -64,7 +64,7 @@ Per position:
 | `grossClaim[]` | What the contract records as owed, raw units per asset |
 | `expectedPayout[]` | What recovery pays now (reserve-limited, net of fees); `payoutBasis` is `view`, `derived` or `simulated` |
 | `recoverableUsd` | expectedPayout × price. `priceSource` and `priceAt` are stored; quotes older than 7 days are unpriced; unpriced value is counted separately, never as 0. Prices are CoinGecko quotes checked against the exact asset, except staked-APT receipts without a fresh quote (stAPT, sthAPT): those are valued at redemption, the on-chain exchange rate (less any unstake fee) × the APT quote, dated like the APT quote and labeled `derived`. |
-| `status` | Exactly one of `recoverable`, `team_gated` (needs an operator signature or packet), `blocked` (with `blockers[{code, detail}]`), `contract_held` (held by a resource account or an object: counted apart, never in the headline), `unknown` |
+| `status` | Exactly one of `recoverable`, `team_gated` (needs an operator signature or packet), `blocked` (with `blockers[{code, detail}]`), `contract_held` (held by a resource account or an object: counted apart), `unknown` |
 | `confidence` | `verified_view`, `derived_math` or `indexer_only`. `indexer_only` never enters totals. |
 
 **Dedupe:**
@@ -73,11 +73,10 @@ Per position:
 - A receipt and its underlying are counted once, at the position.
 - Owners are counted per source and globally.
 
-**Headline** = `recoverableUsd` where all of these hold:
+**What the site counts:**
 
-- `status = recoverable`.
-- Age ≥ 90 days.
-- `ageBasis` is headline-eligible.
+- **Claimable now:** `recoverableUsd` of every `recoverable` position, any age.
+- **Left behind 90+ days:** the claimable positions aged ≥ 90 days on an `ageBasis` that counts (table above).
 
 Face value, `blocked`, `team_gated`, estimated-age and unpriced value are reported separately.
 

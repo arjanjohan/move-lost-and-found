@@ -1,0 +1,15 @@
+---
+// The site's mark: a lens over a coin. public/favicon.svg is the same drawing.
+---
+<svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+  <circle class="lens" cx="10" cy="10" r="7.2" />
+  <circle class="coin" cx="10" cy="10" r="3.6" />
+  <path class="handle" d="M15.4 15.4 21 21" />
+</svg>
+
+<style>
+  .mark { width: 20px; height: 20px; flex: none; }
+  .lens { fill: none; stroke: var(--accent); stroke-width: 2.6; }
+  .coin { fill: var(--c2); }
+  .handle { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+</style>

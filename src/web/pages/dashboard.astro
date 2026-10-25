@@ -30,7 +30,7 @@ const views = [
 <Base title="Dashboard · Move Lost & Found" description="What is left behind on Aptos and Movement, per source and protocol, updated weekly.">
   {snapshot ? (
     <>
-      {/* Each row of the headline (title, text, cards) holds every view's version in one grid cell, only the selected
+      {/* Each row of the summary (title, text, cards) holds every view's version in one grid cell, only the selected
           one visible: a row keeps the height of its tallest version, so switching views moves nothing. */}
       <div class="stack">
         {views.map((v, i) => <h1 class:list={['pane', { active: i === 0 }]} data-view={v.key}>{usd(v.headline)} left behind on {v.where}</h1>)}
@@ -39,18 +39,19 @@ const views = [
         {views.map((v, i) => (
           <p class:list={['pane', 'muted', { active: i === 0 }]} data-view={v.key}>
             Withdrawable for 90 days or more and never withdrawn{v.owners ? `, across ${count(v.owners.headlineOwners)} wallets (${count(v.owners.headlineOwnersMin10)} with $10 or more)` : ''}.
-            Updated weekly; as of {date(snapshot.generatedAt)}.
+            Updated weekly on Mondays.
           </p>
         ))}
       </div>
       <div class="stack">
         {views.map((v, i) => (
           <div class:list={['pane', 'cards', { active: i === 0 }]} data-view={v.key}>
-            <div class="card"><span class="muted">Left behind 90+ days</span><b>{usd(v.headline)}</b><span class="muted">claimable and untouched for 90 days or more: the headline</span></div>
-            <div class="card"><span class="muted">Claimable now, any age</span><b>{usd(v.claimable)}</b><span class="muted">includes {usd(Math.max(0, v.claimable - v.headline))} outside the headline: under 90 days, or of unknown or estimated age</span></div>
+            <div class="card"><span class="muted">Left behind 90+ days</span><b>{usd(v.headline)}</b><span class="muted">claimable and untouched for 90 days or more</span></div>
+            <div class="card"><span class="muted">Claimable now, any age</span><b>{usd(v.claimable)}</b><span class="muted">includes {usd(Math.max(0, v.claimable - v.headline))} under 90 days, or of unknown or estimated age</span></div>
           </div>
         ))}
       </div>
+      <p class="updated"><span class="badge">Last update: {date(snapshot.generatedAt)}</span></p>
 
       <h2>By protocol</h2>
       <div class="toggle" role="group" aria-label="Chain">
@@ -125,6 +126,8 @@ const views = [
 
 <style>
   .toggle { display: inline-flex; background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 3px; margin-bottom: 20px; }
+  .updated { margin: 12px 0 0; }
+  .updated + h2 { margin-top: 36px; }
   .stack { display: grid; }
   .stack > .pane { grid-area: 1 / 1; }
   .stack > .pane:not(.active) { visibility: hidden; }
