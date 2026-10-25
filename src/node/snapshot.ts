@@ -155,6 +155,14 @@ export function keepPrevious(def: SourceDef<any>, prev: SnapshotSource | undefin
   return !!prev && quoted.length > 0 && nowSecs - Math.min(...quoted) <= MARKET_MAX_AGE_SECS;
 }
 
+/** Run order: the source a single-source run names, then sources with nothing read yet, then the rest in their usual
+ *  order. A backlog or re-read in an earlier source must not use up the request cap before a newer source gets its
+ *  first read. */
+export function runOrder<T extends { id: string }>(sources: T[], only: string | undefined, known: (id: string) => boolean): T[] {
+  const rank = (s: T) => (s.id === only ? 0 : known(s.id) ? 2 : 1);
+  return [...sources].sort((a, b) => rank(a) - rank(b));
+}
+
 async function main() {
   const state = new State(STATE);
   const { chains, usage } = readers(CAP, { anonymous: args.includes('--anonymous') });
@@ -166,7 +174,7 @@ async function main() {
   const panora = process.env.PANORA_API_KEY ? panoraProvider(process.env.PANORA_API_KEY, prices[APT]?.usd ?? null) : undefined;
 
   const sources: SnapshotSource[] = [];
-  for (const def of SOURCES.filter(s => !s.checkOnly)) {
+  for (const def of runOrder(SOURCES.filter(s => !s.checkOnly), ONLY, id => state.candidateCount(id) > 0)) {
     const en = ENUMERATORS.find(e => e.sourceId === def.id);
     if (!en) throw new Error(`No enumerator for ${def.id}`);
     const prev = previous?.sources.find(s => s.id === def.id);
@@ -193,6 +201,8 @@ async function main() {
     });
     console.error(`${def.id}: ${run.completeness} ${run.degradedReasons.join('; ')}`);
   }
+  // Published in the usual order, whatever order they ran in.
+  sources.sort((a, b) => SOURCES.findIndex(s => s.id === a.id) - SOURCES.findIndex(s => s.id === b.id));
 
   // Global owners are unique across sources, and per chain across its sources.
   const headlineOwners = new Map<string, number>();

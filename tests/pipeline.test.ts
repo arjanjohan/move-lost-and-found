@@ -12,7 +12,7 @@ import { aaveFrozenEnumerator, animeswapClosedEnumerator, canopyFrozenEnumerator
 import { ANIMESWAP_POOLS } from '../src/shared/sources/animeswap-closed.ts';
 import { CANOPY_REWARDS_STATE } from '../src/shared/sources/canopy-rewards.ts';
 import { fetchPrices } from '../src/node/prices.ts';
-import { keepPrevious, reclassifiedUnder, runSource } from '../src/node/snapshot.ts';
+import { keepPrevious, reclassifiedUnder, runOrder, runSource } from '../src/node/snapshot.ts';
 import { State } from '../src/node/state.ts';
 import { positionIds } from '../src/shared/accounting.ts';
 import { AAVE, AAVE_UNFROZEN_AT } from '../src/shared/sources/aave-frozen.ts';
@@ -101,6 +101,15 @@ describe('runSource', () => {
       new State(':memory:'), chain(), capHit);
     expect(capHit.hit).toBe(true);
     expect(run.degradedReasons.join()).toMatch(/request cap/);
+  });
+});
+
+describe('run order', () => {
+  it('runs the named source first, then sources with nothing read yet, then the rest in their usual order', () => {
+    const sources = ['a', 'b', 'c', 'd'].map(id => ({ id }));
+    const known = (id: string) => id !== 'c';
+    expect(runOrder(sources, undefined, known).map(s => s.id)).toEqual(['c', 'a', 'b', 'd']);
+    expect(runOrder(sources, 'd', known).map(s => s.id)).toEqual(['d', 'c', 'a', 'b']);
   });
 });
 
