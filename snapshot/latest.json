@@ -1,65 +1,65 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-26T09:49:26.796Z",
+  "generatedAt": "2026-10-26T10:39:00.396Z",
   "prices": {
     "0x000000000000000000000000000000000000000000000000000000000000000a": {
-      "usd": 0.698586,
+      "usd": 0.693159,
       "decimals": 8,
-      "at": "2026-10-26T08:59:47.000Z",
+      "at": "2026-10-26T10:18:11.000Z",
       "source": "coingecko simple/price"
     },
     "0x07fd500c11216f0fe3095d0c4b8aa4d64a4e2e04f83758462f2b127255643615::thl_coin::THL": {
-      "usd": 0.01009967,
+      "usd": 0.01001861,
       "decimals": 8,
-      "at": "2026-10-26T08:59:59.000Z",
+      "at": "2026-10-26T10:18:29.000Z",
       "source": "coingecko simple/price"
     },
     "movement:0x000000000000000000000000000000000000000000000000000000000000000a": {
-      "usd": 0.00680086,
+      "usd": 0.00678928,
       "decimals": 8,
-      "at": "2026-10-26T09:00:08.000Z",
+      "at": "2026-10-26T10:18:29.000Z",
       "source": "coingecko simple/price"
     },
     "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDC": {
-      "usd": 0.999644,
+      "usd": 0.99966,
       "decimals": 6,
-      "at": "2026-10-26T09:00:08.000Z",
+      "at": "2026-10-26T10:18:29.000Z",
       "source": "coingecko simple/price"
     },
     "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDT": {
-      "usd": 0.999206,
+      "usd": 0.999196,
       "decimals": 6,
-      "at": "2026-10-26T09:00:08.000Z",
+      "at": "2026-10-26T10:18:29.000Z",
       "source": "coingecko simple/price"
     },
     "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::WETH": {
-      "usd": 2325.86,
+      "usd": 2330.25,
       "decimals": 6,
-      "at": "2026-10-26T09:00:08.000Z",
+      "at": "2026-10-26T10:18:29.000Z",
       "source": "coingecko simple/price"
     },
     "0x159df6b7689437016108a019fd5bef736bac692b6d4a1f10c941f6fbb9a74ca6::oft::CakeOFT": {
-      "usd": 2.08,
+      "usd": 2.1,
       "decimals": 8,
-      "at": "2026-10-26T08:59:59.000Z",
+      "at": "2026-10-26T10:18:20.000Z",
       "source": "coingecko simple/price"
     },
     "0x8b107b816356295ea62750020edea701bfc6d11575953d0e146c20d7b9409300::oft::BTCbOFT": {
-      "usd": 80171,
+      "usd": 80347,
       "decimals": 8,
-      "at": "2026-10-26T09:00:08.000Z",
+      "at": "2026-10-26T10:18:29.000Z",
       "source": "coingecko simple/price"
     },
     "0x5e156f1207d0ebfa19a9eeff00d62a282278fb8719f4fab3a586a0a2c0fffbea::coin::T": {
-      "usd": 0.999644,
+      "usd": 0.99966,
       "decimals": 6,
-      "at": "2026-10-26T09:00:08.000Z",
+      "at": "2026-10-26T10:18:29.000Z",
       "source": "coingecko simple/price"
     },
     "0x6f986d146e4a90b828d8c12c14b6f4e003fdff11a8eecceceb63744363eaac01::mod_coin::MOD": {
-      "usd": 0.997153,
+      "usd": 0.99377,
       "decimals": 8,
-      "at": "2026-10-26T09:00:08.000Z",
+      "at": "2026-10-26T10:18:29.000Z",
       "source": "coingecko simple/price"
     },
     "0x821c94e69bc7ca058c913b7b5e6b0a5c9fd1523d58723a966fb8c1f5ea888105": {
@@ -69,58 +69,58 @@
       "source": "coingecko simple/price"
     },
     "0xa259be733b6a759909f92815927fa213904df6540519568692caf0b068fe8e62": {
-      "usd": 0.69731,
+      "usd": 0.691713,
       "decimals": 8,
-      "at": "2026-10-26T09:00:08.000Z",
+      "at": "2026-10-26T10:18:29.000Z",
       "source": "coingecko simple/price"
     },
     "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::amapt_token::AmnisApt": {
-      "usd": 0.69731,
+      "usd": 0.691713,
       "decimals": 8,
-      "at": "2026-10-26T09:00:08.000Z",
+      "at": "2026-10-26T10:18:29.000Z",
       "source": "coingecko simple/price"
     },
     "0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b": {
-      "usd": 0.999206,
+      "usd": 0.999197,
       "decimals": 6,
-      "at": "2026-10-26T09:00:08.000Z",
+      "at": "2026-10-26T10:18:20.000Z",
       "source": "coingecko simple/price"
     },
     "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b": {
-      "usd": 0.999644,
+      "usd": 0.999665,
       "decimals": 6,
-      "at": "2026-10-26T08:59:59.000Z",
+      "at": "2026-10-26T10:18:11.000Z",
       "source": "coingecko simple/price"
     },
     "0xb30a694a344edee467d9f82330bbe7c3b89f440a1ecd2da1f3bca266560fce69": {
-      "usd": 1.26,
+      "usd": 1.25,
       "decimals": 6,
-      "at": "2026-10-26T08:59:47.000Z",
+      "at": "2026-10-26T10:18:20.000Z",
       "source": "coingecko simple/price"
     },
     "movement:0x51ffc9885233adf3dd411078cad57535ed1982013dc82d9d6c433a55f2e0035d": {
-      "usd": 2509.71,
+      "usd": 2515.38,
       "decimals": 8,
-      "at": "2026-10-26T09:00:08.000Z",
+      "at": "2026-10-26T10:18:20.000Z",
       "source": "coingecko simple/price"
     },
-    "0x42556039b88593e768c97ab1a3ab0c6a17230825769304482dff8fdebe4c002b": {
-      "usd": 0.7583857579880401,
+    "0xfaf4e633ae9eb31366c9ca24214231760926576c7b625313b3688b5e900731f6::staking::StakedThalaAPT": {
+      "usd": 0.8849862690025682,
       "decimals": 8,
-      "at": "2026-10-26T08:59:47.000Z",
+      "at": "2026-10-26T10:18:11.000Z",
+      "source": "derived: Thala thAPT_sthAPT_exchange_rate less unstake_APT_fee_bps x APT (coingecko)"
+    },
+    "0x42556039b88593e768c97ab1a3ab0c6a17230825769304482dff8fdebe4c002b": {
+      "usd": 0.75249420060126,
+      "decimals": 8,
+      "at": "2026-10-26T10:18:11.000Z",
       "source": "derived: Kofi get_exchange_rate less get_withdrawal_fee x APT (coingecko)"
     },
     "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::stapt_token::StakedApt": {
-      "usd": 0.85048372453842,
+      "usd": 0.8438800197608399,
       "decimals": 8,
-      "at": "2026-10-26T08:59:47.000Z",
+      "at": "2026-10-26T10:18:11.000Z",
       "source": "derived: Amnis stapt_price x APT (coingecko)"
-    },
-    "0xfaf4e633ae9eb31366c9ca24214231760926576c7b625313b3688b5e900731f6::staking::StakedThalaAPT": {
-      "usd": 0.8919151561437247,
-      "decimals": 8,
-      "at": "2026-10-26T08:59:47.000Z",
-      "source": "derived: Thala thAPT_sthAPT_exchange_rate less unstake_APT_fee_bps x APT (coingecko)"
     }
   },
   "priceErrors": [
@@ -4393,58 +4393,56 @@
         "processor": "user_transaction_processor",
         "scope": "senders of 0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::supply, 0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw, 0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw_all, 0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::supply_fa, 0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw_fa, 0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw_all_fa, 0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::borrow from version 7694000000, 0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::borrow_fa from version 7694000000, 0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::repay from version 7694000000, 0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::repay_all from version 7694000000, 0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::repay_fa from version 7694000000, 0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::repay_all_fa from version 7694000000 entry calls (calls made by other contracts excluded)",
         "enumeration": {
-          "pages": 15,
-          "newCandidates": 5,
+          "pages": 12,
+          "newCandidates": 0,
           "candidates": 129666,
-          "start": "2026-10-26T09:45:31.728Z",
-          "end": "2026-10-26T09:45:37.481Z",
+          "start": "2026-10-26T10:18:34.437Z",
+          "end": "2026-10-26T10:18:36.801Z",
           "cursor": "{\"0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::supply\":\"7771782219\",\"0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw\":\"7771649678\",\"0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw_all\":\"7769406294\",\"0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::supply_fa\":\"7771556332\",\"0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw_fa\":\"7770998453\",\"0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw_all_fa\":\"7770509933\",\"0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::borrow\":\"7763072144\",\"0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::borrow_fa\":\"7771103207\",\"0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::repay\":\"7770487429\",\"0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::repay_all\":\"7722110201\",\"0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::repay_fa\":\"7770531361\",\"0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::repay_all_fa\":\"7769866113\"}"
         },
         "verification": {
-          "read": 13828,
-          "incomplete": 3,
+          "read": 77761,
+          "incomplete": 0,
           "notReread": 0,
-          "start": "2026-10-26T09:45:38.562Z",
-          "ledgerFrom": "7771896751",
-          "end": "2026-10-26T09:48:59.114Z"
+          "start": "2026-10-26T10:18:37.514Z",
+          "ledgerFrom": "7772182773",
+          "end": "2026-10-26T10:38:53.194Z",
+          "ledgerTo": "7772354530"
         },
-        "completeness": "degraded",
-        "degradedReasons": [
-          "run failed: Error: Request cap 300000 reached",
-          "3 owners read incompletely; their previous positions are kept"
-        ],
-        "errors": [
-          "Error: Request cap 300000 reached"
-        ],
+        "completeness": "complete",
+        "degradedReasons": [],
+        "errors": [],
         "watermarkBefore": {
-          "version": "7771895277",
-          "timestamp": "2026-10-26T09:45:29.272701Z"
+          "version": "7772182174",
+          "timestamp": "2026-10-26T10:18:32.31381Z"
         },
         "watermarkAfter": {
-          "version": "7771896316",
-          "timestamp": "2026-10-26T09:45:35.322189Z"
+          "version": "7772182468",
+          "timestamp": "2026-10-26T10:18:34.317039Z"
         },
         "sanity": {
-          "check": "sanity",
-          "ok": null,
-          "detail": "Error: Request cap 300000 reached"
+          "check": "supply found per market <= market supply (shares x exchange rate); coverage shown",
+          "ok": true,
+          "detail": "lzUSDT 92.52% of supply found; lzUSDC 89.81% of supply found; MOD 29.65% of supply found; THL 11.57% of supply found; sthAPT 81.53% of supply found; whUSDC 93.03% of supply found; whWETH 92.07% of supply found; CAKE 96.66% of supply found; stAPT 77.77% of supply found; aBTC 95.52% of supply found; STONE 31.00% of supply found; truAPT 17.34% of supply found; SBTC 0.00% of supply found; thLPT-1 23.07% of supply found; thLPT-2 98.09% of supply found; thLPT-3 95.39% of supply found; kAPT 97.03% of supply found; stkAPT 98.01% of supply found; amAPT 54.62% of supply found; gstAPT 97.79% of supply found; sYUSD 99.99% of supply found"
         }
       },
+      "ownerRules": 2,
+      "lastSuccessAt": "2026-10-26T10:38:53.194Z",
       "totals": {
         "face": {
-          "positions": 16415,
-          "owners": 15925,
-          "usd": 95129.2417763392,
-          "unpriced": 92,
-          "ownersMin10": 314
+          "positions": 32999,
+          "owners": 32023,
+          "usd": 129898.95575819926,
+          "unpriced": 180,
+          "ownersMin10": 620
         },
         "byStatus": {
           "recoverable": {
-            "positions": 16408,
-            "owners": 15924,
-            "usd": 90145.04383106201,
-            "unpriced": 90,
-            "ownersMin10": 307
+            "positions": 32989,
+            "owners": 32020,
+            "usd": 123156.20004636454,
+            "unpriced": 177,
+            "ownersMin10": 606
           },
           "team_gated": {
             "positions": 0,
@@ -4454,10 +4452,10 @@
             "ownersMin10": 0
           },
           "blocked": {
-            "positions": 7,
-            "owners": 1,
-            "usd": 163.26639438330392,
-            "unpriced": 2,
+            "positions": 10,
+            "owners": 3,
+            "usd": 162.7854117386427,
+            "unpriced": 3,
             "ownersMin10": 1
           },
           "contract_held": {
@@ -4477,11 +4475,11 @@
         },
         "faceByStatus": {
           "recoverable": {
-            "positions": 16408,
-            "owners": 15924,
-            "usd": 94954.95469880948,
-            "unpriced": 90,
-            "ownersMin10": 313
+            "positions": 32989,
+            "owners": 32020,
+            "usd": 129725.20582597893,
+            "unpriced": 177,
+            "ownersMin10": 619
           },
           "team_gated": {
             "positions": 0,
@@ -4491,10 +4489,10 @@
             "ownersMin10": 0
           },
           "blocked": {
-            "positions": 7,
-            "owners": 1,
-            "usd": 174.28707752970882,
-            "unpriced": 2,
+            "positions": 10,
+            "owners": 3,
+            "usd": 173.74993222031898,
+            "unpriced": 3,
             "ownersMin10": 1
           },
           "contract_held": {
@@ -4514,25 +4512,25 @@
         },
         "aged": {
           "ge30": {
-            "positions": 16408,
-            "owners": 15924,
-            "usd": 90145.04383106201,
-            "unpriced": 90,
-            "ownersMin10": 307
+            "positions": 32989,
+            "owners": 32020,
+            "usd": 123156.20004636454,
+            "unpriced": 177,
+            "ownersMin10": 606
           },
           "ge90": {
-            "positions": 16408,
-            "owners": 15924,
-            "usd": 90145.04383106201,
-            "unpriced": 90,
-            "ownersMin10": 307
+            "positions": 32989,
+            "owners": 32020,
+            "usd": 123156.20004636454,
+            "unpriced": 177,
+            "ownersMin10": 606
           },
           "ge180": {
-            "positions": 16408,
-            "owners": 15924,
-            "usd": 90145.04383106201,
-            "unpriced": 90,
-            "ownersMin10": 307
+            "positions": 32989,
+            "owners": 32020,
+            "usd": 123156.20004636454,
+            "unpriced": 177,
+            "ownersMin10": 606
           }
         },
         "agedEstimated": {
@@ -4567,11 +4565,11 @@
             "ownersMin10": 0
           },
           "protocol_closure": {
-            "positions": 16408,
-            "owners": 15924,
-            "usd": 90145.04383106201,
-            "unpriced": 90,
-            "ownersMin10": 307
+            "positions": 32989,
+            "owners": 32020,
+            "usd": 123156.20004636454,
+            "unpriced": 177,
+            "ownersMin10": 606
           },
           "position_interaction": {
             "positions": 0,
@@ -4589,13 +4587,13 @@
           }
         },
         "headline": {
-          "positions": 16408,
-          "owners": 15924,
-          "usd": 90145.04383106201,
-          "unpriced": 90,
-          "ownersMin10": 307
+          "positions": 32989,
+          "owners": 32020,
+          "usd": 123156.20004636454,
+          "unpriced": 177,
+          "ownersMin10": 606
         },
-        "headlineTopOwnerShare": 0.4798558294101954,
+        "headlineTopOwnerShare": 0.3512455575549011,
         "unverified": {
           "positions": 0,
           "owners": 0,
@@ -4607,23 +4605,23 @@
       "sizeBands": [
         {
           "upTo": 1,
-          "positions": 15613
+          "positions": 31410
         },
         {
           "upTo": 10,
-          "positions": 384
+          "positions": 776
         },
         {
           "upTo": 100,
-          "positions": 257
+          "positions": 494
         },
         {
           "upTo": 1000,
-          "positions": 55
+          "positions": 117
         },
         {
           "upTo": 10000,
-          "positions": 7
+          "positions": 13
         },
         {
           "upTo": null,
@@ -7646,21 +7644,21 @@
     }
   ],
   "global": {
-    "headlineUsd": 10897350.180008866,
-    "headlineOwners": 115566,
-    "headlineOwnersMin10": 9047,
-    "recoverableUsd": 14191575.559637055,
+    "headlineUsd": 10930361.336224169,
+    "headlineOwners": 131258,
+    "headlineOwnersMin10": 9326,
+    "recoverableUsd": 14224586.715852357,
     "byChain": {
       "aptos": {
-        "headlineOwners": 110659,
-        "headlineOwnersMin10": 9025
+        "headlineOwners": 126353,
+        "headlineOwnersMin10": 9304
       },
       "movement": {
         "headlineOwners": 4977,
         "headlineOwnersMin10": 21
       }
     },
-    "requests": 300000,
+    "requests": 205831,
     "requestCap": 300000
   }
 }
