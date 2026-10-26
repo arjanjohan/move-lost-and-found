@@ -5,6 +5,7 @@ import { AMNIS, AMNIS_WITHDRAWAL_COLLECTION } from '../shared/sources/amnis-with
 import { ANIMESWAP, ANIMESWAP_POOLS, animeswapLps, assetOf as animeswapAsset, pairOf } from '../shared/sources/animeswap-closed.ts';
 import { EARNIUM } from '../shared/sources/earnium-closed.ts';
 import { ECHO, ECHO_OWN_WALLETS, ECHO_RESERVES } from '../shared/sources/echo-wound-down.ts';
+import { GOBLIN_CHEF, GOBLIN_CHEF_ACCOUNT, GOBLIN_VAULTS, WIPED_VAULTS } from '../shared/sources/goblin-wiped-out.ts';
 import { HOUSTON, HOUSTON_POOLS } from '../shared/sources/houston-closed.ts';
 import { AURO_CLOSED_AT, AURO_COLLECTION, AURO_ROUTER } from '../shared/sources/auro-closed.ts';
 import { CANOPY_REWARDS, CANOPY_REWARDS_STATE } from '../shared/sources/canopy-rewards.ts';
@@ -1158,6 +1159,69 @@ export const echoWoundDownEnumerator: Enumerator = {
   },
 };
 
+// Goblin's wiped-out vaults: every holder of their shares, and every account that staked shares in Goblin's MasterChef
+// (senders of masterchef::deposit, or of zap::zap_in_*, which deposit and stake in one call; together they cover each
+// pool's total_amount, checked 2026-10-26). Holders are paged on last_transaction_version: ordering by store or owner
+// times out on the indexer for the APT-USDt vault's 840 stores (2026-10-26). The boundary version is read again and
+// deduplicated by store.
+const GOBLIN_HOLDERS_QUERY = `query($v:String!,$from:bigint!){ current_fungible_asset_balances(where:{asset_type:{_eq:$v}, amount:{_gt:"0"},
+  last_transaction_version:{_gte:$from}}, order_by:{last_transaction_version:asc}, limit:${PAGE}){ storage_id owner_address last_transaction_version } }`;
+const GOBLIN_STAKES: EntryFunction[] = [{ contract: GOBLIN_CHEF, module: 'masterchef', name: 'deposit' },
+  ...['zap_in_with_pair', 'zap_in_with_pair_both_coin', 'zap_in_with_pair_coin', 'zap_in_with_single', 'zap_in_with_single_coin']
+    .map(name => ({ contract: GOBLIN_CHEF, module: 'zap', name }))];
+export const goblinWipedOutEnumerator: Enumerator = {
+  sourceId: 'goblin-wiped-out-vaults',
+  processor: 'fungible_asset_processor',
+  alsoProcessors: ['user_transaction_processor'],
+  scope: `holders of the shares of the ${WIPED_VAULTS.size} vaults Goblin wiped out (current_fungible_asset_balances), and senders of ${GOBLIN_STAKES.map(f => `${f.module}::${f.name}`).join(', ')} on ${GOBLIN_CHEF} (stakers)`,
+  async run(chain, cursor) {
+    const stakers = await senders(chain, GOBLIN_STAKES, cursor);
+    const owners = new Set(stakers.candidates.map(c => c.owner));
+    let pages = stakers.pages;
+    for (const vault of WIPED_VAULTS.keys()) {
+      const stores = new Set<string>();
+      let from = '0';
+      for (;;) {
+        const rows = (await chain.gql(GOBLIN_HOLDERS_QUERY, { v: vault, from })).current_fungible_asset_balances;
+        pages++;
+        const before = stores.size;
+        for (const r of rows) {
+          stores.add(r.storage_id);
+          const owner = normalizeAddress(r.owner_address);
+          if (owner !== GOBLIN_CHEF_ACCOUNT) owners.add(owner);
+        }
+        if (rows.length < PAGE) break;
+        if (stores.size === before) throw new Error(`Goblin vault ${vault}: ${PAGE}+ stores changed at version ${from}`);
+        from = String(rows[rows.length - 1].last_transaction_version);
+      }
+    }
+    return { candidates: [...owners].map(owner => ({ owner })), cursor: stakers.cursor, pages, incremental: true };
+  },
+  async sanity(chain, ledger, positions) {
+    // Per vault and token: what is counted cannot exceed the store, nor what the positions are owed what all shares are
+    // (at the recorded amounts, or at the closed position's where those are higher: named accounts are paid at them).
+    const over: string[] = [];
+    for (const [vault, info] of WIPED_VAULTS) {
+      const mine = positions.filter(p => p.locator.split('/')[0] === vault);
+      if (!mine.length) continue;
+      const [v, clear] = await Promise.all([chain.resource(vault, `${GOBLIN_VAULTS}::vaults::Vault`, ledger.version), chain.resource(vault, `${GOBLIN_VAULTS}::vaults::ClearOut`, ledger.version)]);
+      const all = await chain.view(`${GOBLIN_VAULTS}::vaults::get_token_amount_by_share`, [vault, v.total_shares], [], ledger.version);
+      for (const [i, token, store] of [[0, v.token_a.inner, clear.token_a_store.inner], [1, v.token_b.inner, clear.token_b_store.inner]] as const) {
+        const asset = normalizeAddress(token);
+        const [held] = await chain.view('0x1::fungible_asset::balance', [store], ['0x1::fungible_asset::FungibleStore'], ledger.version);
+        const counted = mine.filter(p => p.asset === asset && p.status === 'recoverable').reduce((t, p) => t + BigInt(p.expectedPayout[0].raw), 0n);
+        const owed = mine.filter(p => p.asset === asset).reduce((t, p) => t + BigInt(p.grossClaim[0].raw), 0n);
+        const position = BigInt(i === 0 ? clear.position_amount_a : clear.position_amount_b);
+        const bound = BigInt(all[i]) > position ? BigInt(all[i]) : position;
+        if (counted > BigInt(held)) over.push(`${info.name} token ${i}: counted ${counted} > store ${held}`);
+        if (owed > bound) over.push(`${info.name} token ${i}: owed ${owed} > all shares ${bound}`);
+      }
+    }
+    return { check: 'counted <= store and owed <= what all shares are owed, per vault and token', ok: over.length === 0,
+      detail: `${WIPED_VAULTS.size} vaults${over.length ? `; ${over.join('; ')}` : ''}` };
+  },
+};
+
 export const thalaVethlEnumerator = entrySenders('thala-vethl-expired',
   [{ contract: THALA_VE, module: 'scripts', name: 'lock' }, { contract: THALA_VEST, module: 'farming_vesting', name: 'convert_to_vethl' }],
   noContractTotal);
@@ -1169,4 +1233,4 @@ export const thalaVestingEnumerator = entrySenders('thala-vesting-matured',
 export const ENUMERATORS: Enumerator[] = [delegationEnumerator, thalaUnstakeEnumerator, kofiWithdrawalsEnumerator, tortugaTicketsEnumerator,
   amnisWithdrawalsEnumerator, thalaVethlEnumerator, thalaVestingEnumerator, inactiveValidatorEnumerator,
   trufinUnlocksEnumerator, movementDelegationEnumerator, movementInactiveValidatorEnumerator, kofiReceiptsEnumerator,
-  merkleMklpEnumerator, merkleVemklEnumerator, layerzeroClaimableEnumerator, canopyEndedRewardsEnumerator, pancakeSyrupEnumerator, topazBidsEnumerator, pancakeFarmEnumerator, echelonFrozenEnumerator, aaveFrozenEnumerator, econiaIdleEnumerator, auroClosedEnumerator, animeswapClosedEnumerator, earniumClosedEnumerator, houstonClosedEnumerator, echoWoundDownEnumerator, canopyFrozenEnumerator];
+  merkleMklpEnumerator, merkleVemklEnumerator, layerzeroClaimableEnumerator, canopyEndedRewardsEnumerator, pancakeSyrupEnumerator, topazBidsEnumerator, pancakeFarmEnumerator, echelonFrozenEnumerator, aaveFrozenEnumerator, econiaIdleEnumerator, auroClosedEnumerator, animeswapClosedEnumerator, earniumClosedEnumerator, houstonClosedEnumerator, echoWoundDownEnumerator, goblinWipedOutEnumerator, canopyFrozenEnumerator];

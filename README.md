@@ -29,6 +29,8 @@ Sources (evidence for each in [docs/sources.md](docs/sources.md)):
 | `animeswap-closed-lp` | Aptos | Liquidity left in AnimeSwap pools after its frontend went away (October 2026) |
 | `earnium-closed-lp` | Aptos | Liquidity left in Earnium pools and liquidity staking after its frontend went away (October 2026) |
 | `houston-closed-lp` | Aptos | Liquidity positions left in HoustonSwap pools after its app went away (October 2026) |
+| `echo-wound-down` | Aptos | Supply left in Echo's lending reserves after its wind-down (notice 2026-10-19), counted at each lender's share of the reserve's cash |
+| `goblin-wiped-out-vaults` | Aptos | Shares left in the ten Goblin vaults wiped out on 2026-08-10, counted at each holder's share of what the vault's store still holds |
 | `aries-wound-down` | Aptos | Deposits left in Aries Markets after its July 2026 wind-down, at the protocol's current quote; check page only, no dashboard totals |
 | `wormhole-unredeemed` | Aptos | Wormhole Portal transfers to Aptos never redeemed; check page only, when the visitor opts in to the Wormholescan lookup |
 | `topaz-bids` | Aptos | APT still escrowed in bids on Topaz, an NFT marketplace that closed in August 2024 |
