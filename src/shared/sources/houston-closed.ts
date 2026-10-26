@@ -166,8 +166,10 @@ export const houstonClosedLp: SourceDef<HoustonHint> = {
     checkedAt: '2026-10-22',
     effectiveAt: HOUSTON_CLOSED_AT,
   },
-  // An owner's own calls after the closure re-date the pair through the hint; swaps only shift the split between sides.
-  refresh: { nonZero: 'monthly', zero: 'monthly' },
+  // Swaps shift the split between a pair's sides, so owners with positions are re-read every run: the reserve check then
+  // compares them with the reserves at the same version (re-read monthly, they tripped it on 2026-10-26, #55). An
+  // owner's own calls after the closure re-date the pair through the hint.
+  refresh: { nonZero: 'every_run', zero: 'monthly' },
   headlineAgeBases: ['protocol_closure'],
   howTo: [
     `Call ${HOUSTON}::liquidity_manager::remove_liquidity<X, Y>(your address, lower tick, upper tick, fee tier, liquidity, minimum X, minimum Y, deadline) for each position; it also pays the fees the position earned.`,
