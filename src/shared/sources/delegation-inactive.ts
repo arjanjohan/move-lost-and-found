@@ -12,9 +12,11 @@ const MIN_UNLOCK = 1_000_000_000n;
 
 export type InactiveHint = { pools: string[]; version?: number };
 
-// Rewards are distributed every epoch while a validator is in the set; the last one dates when staking stopped.
+// Rewards are distributed every epoch while a validator is in the set; the last one dates when staking stopped. Older
+// pools' rewards are indexed under the v1 event name only: with one name, such a pool matched nothing (scanning its
+// whole history, which times out on the indexer) and looked like one that never earned a reward (#53).
 const LAST_REWARD_QUERY = `query($p:String!){ delegated_staking_activities(where:{pool_address:{_eq:$p},
-  event_type:{_eq:"0x1::stake::DistributeRewards"}}, order_by:{transaction_version:desc}, limit:1){ transaction_version } }`;
+  event_type:{_in:["0x1::stake::DistributeRewards","0x1::stake::DistributeRewardsEvent"]}}, order_by:{transaction_version:desc}, limit:1){ transaction_version } }`;
 
 // A pool's first indexed activity: when it began taking stake (the indexer's delegation history starts at genesis).
 const FIRST_ACTIVITY_QUERY = `query($p:String!){ delegated_staking_activities(where:{pool_address:{_eq:$p}}, order_by:{transaction_version:asc}, limit:1){ transaction_version } }`;

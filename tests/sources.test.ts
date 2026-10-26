@@ -251,14 +251,16 @@ describe('thala THL', () => {
 });
 
 describe('delegation with an inactive validator', () => {
-  const STOP = NOW - 200 * 86_400;
-  const chain = (opts: { state?: number; active?: string; pending?: string; rewards?: boolean; firstActivity?: boolean; addedAt?: number }) => fakeChain({
+  const STOP = NOW - 200 * 86_400, FIRST = NOW - 500 * 86_400;
+  // `rewards: 'v1'`: the pool's rewards are indexed under the v1 event name only.
+  const chain = (opts: { state?: number; active?: string; pending?: string; rewards?: boolean | 'v1'; firstActivity?: boolean; addedAt?: number }) => fakeChain({
     view: fn => fn === '0x1::stake::get_validator_state' ? [String(opts.state ?? 4)]
       : fn === '0x1::delegation_pool::get_stake' ? [opts.active ?? '5000000000', '0', opts.pending ?? '0'] : [],
-    gql: (query, vars) => query.includes('DistributeRewards') ? { delegated_staking_activities: opts.rewards === false ? [] : [{ transaction_version: 10 }] }
-      : query.includes('order_by:{transaction_version:asc}') ? { delegated_staking_activities: opts.firstActivity === false ? [] : [{ transaction_version: 10 }] }
+    gql: (query, vars) => query.includes('DistributeRewards') ? { delegated_staking_activities: opts.rewards === false
+        || (opts.rewards === 'v1' && !query.includes('DistributeRewardsEvent')) ? [] : [{ transaction_version: 10 }] }
+      : query.includes('order_by:{transaction_version:asc}') ? { delegated_staking_activities: opts.firstActivity === false ? [] : [{ transaction_version: 5 }] }
       : query.includes('AddStake') ? { delegated_staking_activities: opts.addedAt ? [{ transaction_version: 20 }] : [] }
-      : query.includes('block_metadata_transactions') ? { block_metadata_transactions: [{ timestamp: new Date(((vars as any).v === '20' ? opts.addedAt! : STOP) * 1000).toISOString().slice(0, -1) }] }
+      : query.includes('block_metadata_transactions') ? { block_metadata_transactions: [{ timestamp: new Date((({ '20': opts.addedAt!, '5': FIRST } as Record<string, number>)[(vars as any).v] ?? STOP) * 1000).toISOString().slice(0, -1) }] }
       : { current_delegator_balances: [] },
   });
   const read = (opts: Parameters<typeof chain>[0]) => delegationInactiveValidator.read(context(chain(opts)), OWNER, { pools: [POOL] });
@@ -274,11 +276,15 @@ describe('delegation with an inactive validator', () => {
   });
 
   it('dates stake in a pool that never earned a reward from the pool\'s first activity (or a later add)', async () => {
-    expect((await read({ rewards: false })).positions[0]).toMatchObject({ ageBasis: 'protocol_closure', claimableSince: new Date(STOP * 1000).toISOString() });
+    expect((await read({ rewards: false })).positions[0]).toMatchObject({ ageBasis: 'protocol_closure', claimableSince: new Date(FIRST * 1000).toISOString() });
     const later = NOW - 100 * 86_400;
     expect((await read({ rewards: false, addedAt: later })).positions[0].claimableSince).toBe(new Date(later * 1000).toISOString());
     // Nothing indexed for the pool at all: unknown.
     expect((await read({ rewards: false, firstActivity: false })).positions[0].ageBasis).toBe('unknown');
+  });
+
+  it('dates a pool whose rewards are indexed under the v1 event name only from its last reward, not its first activity', async () => {
+    expect((await read({ rewards: 'v1' })).positions[0].claimableSince).toBe(new Date(STOP * 1000).toISOString());
   });
 
   it('blocks stake below the 10 APT unlock minimum', async () => {
