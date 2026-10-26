@@ -4,7 +4,7 @@
 // closed, coins resting in open orders count too (R4, decided 2026-10-21): cancel the orders, then withdraw. Only
 // accounts the owner controls (custodian 0) count: custodian accounts (Fliq, Kana) need their custodian to withdraw.
 import { iso, positionIds } from '../accounting.ts';
-import { mapLimit, normalizeAddress, once } from '../chain.ts';
+import { gqlAll, mapLimit, normalizeAddress, once } from '../chain.ts';
 import type { Position, ReadContext, ReadResult, SourceDef } from '../types.ts';
 import { APT } from './delegation.ts';
 import { WH_USDC } from './echelon-frozen.ts';
@@ -49,10 +49,18 @@ export interface EconiaHint { since?: string; markets?: Record<string, string> }
 /** An owner's market accounts: totals, and whether coins rest in open asks or bids (cancelled before a withdrawal). */
 interface MarketAccount { market_id: string; custodian_id: string; base_total: string; quote_total: string; hasAsks: boolean; hasBids: boolean }
 
-/** get_market_accounts lists every account with its orders. For an account with a long order history that exceeds the
- *  view's execution limit (EXECUTION_LIMIT_REACHED: 2 owners, 2026-10-26), so then each account is read from the
- *  MarketAccounts table: the same totals (checked against the view for 6 accounts), and coins locked (total above
- *  available) on a side wherever the view lists open orders on it. */
+/** An own account's key in MarketAccounts.map: the u128 id (market << 64 | custodian 0) in BCS, little-endian, so its
+ *  first 8 bytes are zero. */
+const OWN_KEYS_QUERY = `query($h:String!,$after:String!){ current_table_items(where:{table_handle:{_eq:$h}, key:{_like:"0x0000000000000000%", _gt:$after}},
+  order_by:{key:asc}, limit:100){ key decoded_key } }`;
+
+/** get_market_accounts lists every account with its orders. For an account with many (a Fliq bettor: 1,106 accounts,
+ *  1,104 of them Fliq's question markets under its custodian) that exceeds the view's execution limit
+ *  (EXECUTION_LIMIT_REACHED; so does get_all_market_account_ids_for_user, 2026-10-26, #55). Then only the owner's own
+ *  (custodian 0) accounts are read, the only ones counted: the indexer lists their keys in MarketAccounts.map, and each
+ *  is read from that table on chain. The same totals as the view (checked for 6 accounts), and coins locked (total above
+ *  available) on a side wherever the view lists open orders on it. An own account registered after the indexer's
+ *  watermark is missed until a later run. */
 async function marketAccounts(ctx: ReadContext, owner: string): Promise<MarketAccount[]> {
   const version = ctx.ledger.version;
   try {
@@ -62,11 +70,9 @@ async function marketAccounts(ctx: ReadContext, owner: string): Promise<MarketAc
   } catch (err) {
     if (!String(err).includes('EXECUTION_LIMIT_REACHED')) throw err;
   }
-  const [[ids], table] = await Promise.all([
-    ctx.chain.view(`${ECONIA}::user::get_all_market_account_ids_for_user`, [owner], [], version),
-    ctx.chain.resource(owner, `${ECONIA}::user::MarketAccounts`, version),
-  ]);
-  return mapLimit(ids as string[], 4, async id => {
+  const table = await ctx.chain.resource(owner, `${ECONIA}::user::MarketAccounts`, version);
+  const own = await gqlAll<{ key: string; decoded_key: string }>(ctx.chain, OWN_KEYS_QUERY, { h: table.map.handle }, 'current_table_items', 'key');
+  return mapLimit(own.map(k => k.decoded_key), 4, async id => {
     const a = await ctx.chain.tableItem(table.map.handle, 'u128', `${ECONIA}::user::MarketAccount`, id, version);
     return { market_id: String(BigInt(id) >> 64n), custodian_id: String(BigInt(id) & 0xffff_ffff_ffff_ffffn), base_total: a.base_total, quote_total: a.quote_total,
       hasAsks: BigInt(a.base_total) > BigInt(a.base_available), hasBids: BigInt(a.quote_total) > BigInt(a.quote_available) };
