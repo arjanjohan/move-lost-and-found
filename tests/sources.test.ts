@@ -891,6 +891,30 @@ describe('econia accounts', () => {
     expect(fill.positions.map(p => [p.locator, p.claimableSince])).toEqual([['market-7', ECONIA_ARCHIVED_AT], ['market-8', '2026-10-27T03:17:00.000Z']]);
   });
 
+  it('reads an account too large for get_market_accounts from the MarketAccounts table, open orders from locked coins', async () => {
+    // Market 7, own account: 200 base units (all in asks), 50 quote units (10 in bids); market 8 under custodian 3.
+    const items: Record<string, unknown> = {
+      [((7n << 64n) | 0n).toString()]: { base_total: '200', base_available: '0', quote_total: '50', quote_available: '40' },
+      [((8n << 64n) | 3n).toString()]: { base_total: '9', base_available: '9', quote_total: '0', quote_available: '0' },
+    };
+    const c = fakeChain({
+      view: (fn, args) => {
+        if (fn.endsWith('::user::get_market_accounts')) throw new Error('view: HTTP 400 {"message":"VMError with status EXECUTION_LIMIT_REACHED"}');
+        if (fn.endsWith('::user::get_all_market_account_ids_for_user')) return [Object.keys(items)];
+        if (fn.endsWith('::registry::get_market_info')) return [markets[args[0] as string]];
+        throw new Error(fn);
+      },
+      resource: () => ({ map: { handle: '0xh' } }),
+      tableItem: (_h, _k, _v, key) => items[key as string],
+    });
+    const r = await econiaIdleAccounts.read(context(c), OWNER, {});
+    expect(r.complete).toBe(true);
+    expect(r.positions.map(p => [p.locator, p.asset, p.expectedPayout[0].raw])).toEqual([['market-7', APT, '200'], ['market-7', LZUSDC, '50']]);
+    expect(r.positions[0].steps.map(s => [s.function, s.arguments])).toEqual([
+      [`${ECONIA}::market::cancel_all_orders_user`, ['7', 'true']], [`${ECONIA}::market::cancel_all_orders_user`, ['7', 'false']],
+      [`${ECONIA}::user::withdraw_to_coinstore<${addr(1)}::aptos_coin::AptosCoin>`, ['7', '200']]]);
+  });
+
   it('counts coins resting in open orders (Econia is closed), cancelling them before the withdrawal', async () => {
     const r = await econiaIdleAccounts.read(context(chain([account('7', { base: '5', quote: '9', asks: [{}], bids: [{}] })])), OWNER, {});
     expect(r.positions.map(p => [p.asset, p.expectedPayout[0].raw])).toEqual([[APT, '5'], [LZUSDC, '9']]);

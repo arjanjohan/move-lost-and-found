@@ -4,7 +4,7 @@
 // closed, coins resting in open orders count too (R4, decided 2026-10-21): cancel the orders, then withdraw. Only
 // accounts the owner controls (custodian 0) count: custodian accounts (Fliq, Kana) need their custodian to withdraw.
 import { iso, positionIds } from '../accounting.ts';
-import { normalizeAddress, once } from '../chain.ts';
+import { mapLimit, normalizeAddress, once } from '../chain.ts';
 import type { Position, ReadContext, ReadResult, SourceDef } from '../types.ts';
 import { APT } from './delegation.ts';
 import { WH_USDC } from './echelon-frozen.ts';
@@ -46,6 +46,33 @@ function marketInfo(ctx: ReadContext, id: string): Promise<MarketInfo> {
  */
 export interface EconiaHint { since?: string; markets?: Record<string, string> }
 
+/** An owner's market accounts: totals, and whether coins rest in open asks or bids (cancelled before a withdrawal). */
+interface MarketAccount { market_id: string; custodian_id: string; base_total: string; quote_total: string; hasAsks: boolean; hasBids: boolean }
+
+/** get_market_accounts lists every account with its orders. For an account with a long order history that exceeds the
+ *  view's execution limit (EXECUTION_LIMIT_REACHED: 2 owners, 2026-10-26), so then each account is read from the
+ *  MarketAccounts table: the same totals (checked against the view for 6 accounts), and coins locked (total above
+ *  available) on a side wherever the view lists open orders on it. */
+async function marketAccounts(ctx: ReadContext, owner: string): Promise<MarketAccount[]> {
+  const version = ctx.ledger.version;
+  try {
+    const [accounts] = await ctx.chain.view(`${ECONIA}::user::get_market_accounts`, [owner], [], version);
+    return (accounts as any[]).map(a => ({ market_id: a.market_id, custodian_id: a.custodian_id, base_total: a.base_total, quote_total: a.quote_total,
+      hasAsks: a.asks.length > 0, hasBids: a.bids.length > 0 }));
+  } catch (err) {
+    if (!String(err).includes('EXECUTION_LIMIT_REACHED')) throw err;
+  }
+  const [[ids], table] = await Promise.all([
+    ctx.chain.view(`${ECONIA}::user::get_all_market_account_ids_for_user`, [owner], [], version),
+    ctx.chain.resource(owner, `${ECONIA}::user::MarketAccounts`, version),
+  ]);
+  return mapLimit(ids as string[], 4, async id => {
+    const a = await ctx.chain.tableItem(table.map.handle, 'u128', `${ECONIA}::user::MarketAccount`, id, version);
+    return { market_id: String(BigInt(id) >> 64n), custodian_id: String(BigInt(id) & 0xffff_ffff_ffff_ffffn), base_total: a.base_total, quote_total: a.quote_total,
+      hasAsks: BigInt(a.base_total) > BigInt(a.base_available), hasBids: BigInt(a.quote_total) > BigInt(a.quote_available) };
+  });
+}
+
 async function read(ctx: ReadContext, ownerInput: string, hint?: EconiaHint): Promise<ReadResult> {
   const owner = normalizeAddress(ownerInput);
   const version = ctx.ledger.version;
@@ -54,13 +81,12 @@ async function read(ctx: ReadContext, ownerInput: string, hint?: EconiaHint): Pr
   const sinceIn = (market: string) => hint && [ECONIA_ARCHIVED_AT, hint.since, hint.markets?.[market]]
     .filter((d): d is string => !!d).reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a));
   try {
-    const [accounts] = await ctx.chain.view(`${ECONIA}::user::get_market_accounts`, [owner], [], version);
-    const own = (accounts as any[]).filter(a => a.custodian_id === '0');
+    const own = (await marketAccounts(ctx, owner)).filter(a => a.custodian_id === '0');
     const positions: Position[] = [];
     for (const a of own) {
       const market = await marketInfo(ctx, a.market_id), since = sinceIn(a.market_id);
       // Totals include coins resting in open orders; cancelling them (asks: side true, bids: false) frees them first.
-      const cancels = [...(a.asks.length ? [true] : []), ...(a.bids.length ? [false] : [])].map(side => ({
+      const cancels = [...(a.hasAsks ? [true] : []), ...(a.hasBids ? [false] : [])].map(side => ({
         function: `${ECONIA}::market::cancel_all_orders_user`, arguments: [a.market_id, String(side)], prerequisites: [], expectedOutputs: [] }));
       const sides = [{ coin: market.base, amount: BigInt(a.base_total) }, { coin: market.quote, amount: BigInt(a.quote_total) }];
       // The cancels free both sides at once, so they are listed with the market's first position only.

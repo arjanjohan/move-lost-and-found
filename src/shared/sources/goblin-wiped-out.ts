@@ -162,8 +162,9 @@ export const goblinWipedOut: SourceDef = {
     checkedAt: '2026-10-26',
     effectiveAt: '2026-08-10T08:03:55Z',
   },
-  // Every withdrawal changes what the store holds for everyone else: re-read weekly.
-  refresh: { nonZero: 'weekly', zero: 'monthly' },
+  // Every withdrawal changes what the store holds for everyone else: holders are re-read every run, so their pro-rata
+  // shares and the store check use the same version (re-read weekly, they tripped it on 2026-10-26, #55).
+  refresh: { nonZero: 'every_run', zero: 'monthly' },
   headlineAgeBases: ['protocol_closure'],
   howTo: [
     `If the shares are staked: ${GOBLIN_CHEF}::masterchef::withdraw(pool id, amount).`,
