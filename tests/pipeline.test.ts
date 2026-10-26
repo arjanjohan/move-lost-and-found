@@ -7,7 +7,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RequestCapReached } from '../src/node/client.ts';
 import { SOURCES } from '../src/shared/sources/index.ts';
 import { ENUMERATORS } from '../src/node/enumerators.ts';
-import { echoWoundDownEnumerator } from '../src/node/enumerators.ts';
+import { echoWoundDownEnumerator, goblinWipedOutEnumerator } from '../src/node/enumerators.ts';
+import { GOBLIN_CHEF, GOBLIN_CHEF_ACCOUNT, WIPED_VAULTS } from '../src/shared/sources/goblin-wiped-out.ts';
 import { aaveFrozenEnumerator, animeswapClosedEnumerator, canopyFrozenEnumerator, earniumClosedEnumerator, houstonClosedEnumerator, auroClosedEnumerator, econiaIdleEnumerator, type Enumerator } from '../src/node/enumerators.ts';
 import { ANIMESWAP_POOLS } from '../src/shared/sources/animeswap-closed.ts';
 import { CANOPY_REWARDS_STATE } from '../src/shared/sources/canopy-rewards.ts';
@@ -657,5 +658,49 @@ describe('echo enumerator', () => {
     expect(r.candidates).toEqual([{ owner: addr(1) }]);
     expect(seen[0]).toMatchObject({ m: '100000000' });
     expect(r.pages).toBe(9);
+  });
+});
+
+describe('goblin enumerator', () => {
+  const [FIRST] = [...WIPED_VAULTS.keys()];
+  it('lists every share holder (paged on version, the boundary read again) and every staker, leaving out the MasterChef', async () => {
+    const seen: Record<string, unknown>[] = [];
+    // The first vault: 100 stores, 99 changed at version 5 and one at 6, then that one again and the MasterChef's at 7.
+    const first = Array.from({ length: 100 }, (_, i) => ({ storage_id: addr(`5${i}`), owner_address: addr(100 + i), last_transaction_version: i < 99 ? '5' : '6' }));
+    const c = fakeChain({ gql: (q, vars) => {
+      seen.push(vars);
+      if (q.includes('user_transactions')) return { user_transactions: vars.after === '0' && (vars.f === 'deposit' || vars.f === 'zap_in_with_single')
+        ? [{ version: vars.f === 'deposit' ? '10' : '12', sender: vars.f === 'deposit' ? addr(7) : addr(8) }] : [] };
+      if (vars.v !== FIRST) return { current_fungible_asset_balances: [] };
+      return { current_fungible_asset_balances: vars.from === '0' ? first
+        : [first[99], { storage_id: addr('chef'), owner_address: GOBLIN_CHEF_ACCOUNT, last_transaction_version: '7' }] };
+    } });
+    const r = await goblinWipedOutEnumerator.run(c, undefined);
+    expect(r.candidates.length).toBe(102);
+    expect(r.candidates.map(x => x.owner)).toEqual(expect.arrayContaining([addr(7), addr(8), addr(100), addr(199)]));
+    expect(r.candidates.map(x => x.owner)).not.toContain(GOBLIN_CHEF_ACCOUNT);
+    expect(seen.filter(v => v.v === FIRST).map(v => v.from)).toEqual(['0', '6']);
+    expect(r.incremental).toBe(true);
+    expect(JSON.parse(r.cursor!)).toMatchObject({ [`${GOBLIN_CHEF}::masterchef::deposit`]: '10' });
+    // Six staking entry functions, then one page per vault plus the first vault's second.
+    expect(r.pages).toBe(6 + WIPED_VAULTS.size + 1);
+  });
+
+  it('checks what is counted against each store and what is owed against what all shares are owed', async () => {
+    const c = fakeChain({
+      resource: (_a, type) => (type.endsWith('::Vault') ? { token_a: { inner: addr('aa') }, token_b: { inner: addr('bb') }, total_shares: '1000' }
+        : { token_a_store: { inner: addr('5a') }, token_b_store: { inner: addr('5b') }, position_amount_a: '50', position_amount_b: '600' }),
+      view: (fn, args) => (fn.endsWith('::get_token_amount_by_share') ? ['2000', '500'] : [args[0] === addr('5a') ? '100' : '1000']),
+    });
+    const p = (locator: string, asset: string, raw: string, status: string) =>
+      ({ locator, asset, status, grossClaim: [{ asset, raw }], expectedPayout: status === 'recoverable' ? [{ asset, raw }] : [] } as unknown as Position);
+    const ok = [p(FIRST, addr('aa'), '100', 'recoverable'), p(`${FIRST}/store-short`, addr('aa'), '1900', 'blocked'), p(FIRST, addr('bb'), '500', 'recoverable')];
+    const ledger = { version: '1', timestampSecs: 0 };
+    expect((await goblinWipedOutEnumerator.sanity!(c, ledger, ok)).ok).toBe(true);
+    // Named accounts are paid at the closed position's amounts: 600 USDC units for all shares, above the recorded 500.
+    expect((await goblinWipedOutEnumerator.sanity!(c, ledger, [...ok, p(`${FIRST}/staked`, addr('bb'), '100', 'blocked')])).ok).toBe(true);
+    const over = await goblinWipedOutEnumerator.sanity!(c, ledger, [...ok, p(`${FIRST}/staked`, addr('aa'), '1', 'recoverable')]);
+    expect(over.ok).toBe(false);
+    expect(over.detail).toContain(`${WIPED_VAULTS.get(FIRST)!.name} token 0: counted 101 > store 100`);
   });
 });

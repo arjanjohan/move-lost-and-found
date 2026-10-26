@@ -10,6 +10,7 @@ import { EARNIUM, EARNIUM_CLOSED_AT, earniumClosedLp } from '../src/shared/sourc
 import { ANIMESWAP, ANIMESWAP_CLOSED_AT, ANIMESWAP_POOLS, animeswapClosedLp, isqrt, pairOf } from '../src/shared/sources/animeswap-closed.ts';
 import { ARIES, ARIES_CLOSED_AT, ariesWoundDown, reserveType } from '../src/shared/sources/aries-wound-down.ts';
 import { ECHO, ECHO_CLOSED_AT, ECHO_RESERVES, echoWoundDown } from '../src/shared/sources/echo-wound-down.ts';
+import { GOBLIN_CHEF, GOBLIN_CHEF_ACCOUNT, GOBLIN_VAULTS, goblinWipedOut, WIPED_VAULTS } from '../src/shared/sources/goblin-wiped-out.ts';
 import { AURO_CLOSED_AT, AURO_COLLECTION, AURO_DAO, AURO_ROUTER, auroClosedPositions } from '../src/shared/sources/auro-closed.ts';
 import { keccak256 } from '../src/shared/keccak.ts';
 import { portalTransfer, WH_CORE, WH_TOKEN_BRIDGE, wormholeUnredeemed } from '../src/shared/sources/wormhole-unredeemed.ts';
@@ -1584,5 +1585,83 @@ describe('echo wound down', () => {
     expect(c.calls.filter(x => x.startsWith('view'))).toEqual([]);
     // No cash at all: the whole balance is blocked.
     expect((await echoWoundDown.read(context(chain({ aptCash: '0', held: [APT_R.aToken] })), OWNER)).positions.map(p => [p.locator, p.status])).toEqual([['APT/lent-out', 'blocked']]);
+  });
+});
+
+describe('goblin wiped out', () => {
+  // APT-USDC (MasterChef pool 0): 1,000 shares, each owed 2 APT units and 0.5 USDC units (what the vault recorded at the
+  // wipe-out); its stores hold `stores` (default 100 APT units, 1,000 USDC units).
+  const VAULT = '0x77d56ce63cf4d8c36a60a8a8f29e11ebbf7a1c0e22d6cd069d7f2e950d2fd0bd';
+  const WIPED_AT = WIPED_VAULTS.get(VAULT)!.wipedAt;
+  type Opts = { wallet?: string; staked?: string; stores?: [string, string]; storeChanged?: string; stakeChanged?: string; named?: boolean };
+  const chain = (o: Opts = {}) => fakeChain({
+    gql: q => (q.includes('current_fungible_asset_balances')
+      ? { current_fungible_asset_balances: o.wallet ? [{ asset_type: VAULT, storage_id: addr('51'), is_primary: true, amount: o.wallet,
+        last_transaction_timestamp: o.storeChanged ?? '2026-07-01T00:00:00', last_transaction_version: '1' }] : [] }
+      : { user_transactions: o.stakeChanged ? [{ timestamp: o.stakeChanged }] : [] }),
+    resource: (address, type) => {
+      if (type.endsWith('::vaults::Vault')) return { token_a: { inner: APT }, token_b: { inner: USDC }, total_shares: '1000' };
+      // The closed position held 0.1 APT units and 0.4 USDC units per share.
+      if (type.endsWith('::vaults::ClearOut')) return { token_a_store: { inner: addr('5a') }, token_b_store: { inner: addr('5b') },
+        position_amount_a: '100', position_amount_b: '400', name_list: o.named ? [OWNER] : [addr('99')] };
+      if (type.endsWith('::masterchef::PoolUserInfo')) return o.staked && address === OWNER ? {} : null;
+      throw new Error(type);
+    },
+    view: (fn, args) => {
+      if (fn === '0x1::primary_fungible_store::balance') return [o.wallet ?? '0'];
+      if (fn === '0x1::fungible_asset::balance') return [args[0] === addr('5a') ? (o.stores?.[0] ?? '100') : (o.stores?.[1] ?? '1000')];
+      if (fn.endsWith('::vaults::get_token_amount_by_share')) return [String(BigInt(args[1] as string) * 2n), String(BigInt(args[1] as string) / 2n)];
+      if (fn.endsWith('::masterchef::get_user_info')) {
+        if (args[0] === '0') return [o.staked, '0'];
+        throw new Error(`Move abort in ${GOBLIN_CHEF}::masterchef: ERROR_POOL_USER_INFO_NOT_EXIST(0x60006)`);
+      }
+      throw new Error(fn);
+    },
+  });
+  const rows = (ps: Awaited<ReturnType<typeof goblinWipedOut.read>>['positions']) => ps.map(p => [p.locator.replace(VAULT, 'V'), p.status, p.asset, p.grossClaim[0].raw, p.claimableSince]);
+
+  it('counts each holder for its pro-rata share of a short store, blocks the rest, and withdraws as many shares as the store covers', async () => {
+    // 100 shares are owed 200 APT units and 50 USDC units; their pro-rata share of the stores is 10 APT and 100 USDC.
+    const r = await goblinWipedOut.read(context(chain({ wallet: '100', storeChanged: '2026-09-01T00:00:00' })), OWNER);
+    expect(r.complete).toBe(true);
+    // The store changed after the wipe-out (a partial withdrawal): aged from that change.
+    expect(rows(r.positions)).toEqual([
+      ['V', 'recoverable', APT, '10', '2026-09-01T00:00:00.000Z'], ['V', 'recoverable', USDC, '50', '2026-09-01T00:00:00.000Z'],
+      ['V/store-short', 'blocked', APT, '190', '2026-09-01T00:00:00.000Z']]);
+    expect(r.positions[2].blockers[0].code).toBe('store_short');
+    // The APT store covers 50 of the 100 shares, which pay their full claim; listed once for both tokens.
+    expect(r.positions[0].steps).toEqual([{ function: `${GOBLIN_VAULTS}::vaults::remove_as_pair`, arguments: [VAULT, '50'], prerequisites: [],
+      expectedOutputs: [{ asset: APT, raw: '100' }, { asset: USDC, raw: '25' }] }]);
+    expect(r.positions[1].steps).toEqual([]);
+  });
+
+  it('reads shares staked in the MasterChef, unstaked first, aged from the wipe-out when no later MasterChef call', async () => {
+    const r = await goblinWipedOut.read(context(chain({ staked: '20', stakeChanged: '2026-08-01T00:00:00' })), OWNER);
+    expect(rows(r.positions)).toEqual([
+      ['V/staked', 'recoverable', APT, '2', WIPED_AT], ['V/staked', 'recoverable', USDC, '10', WIPED_AT], ['V/staked/store-short', 'blocked', APT, '38', WIPED_AT]]);
+    expect(r.positions[0].steps.map(s => [s.function, s.arguments])).toEqual([
+      [`${GOBLIN_CHEF}::masterchef::withdraw`, ['0', '20']], [`${GOBLIN_VAULTS}::vaults::remove_as_pair`, [VAULT, '20']]]);
+  });
+
+  it('counts the whole claim where the store covers it, and nothing where a token\'s store is empty', async () => {
+    const covered = await goblinWipedOut.read(context(chain({ wallet: '100', stores: ['100000', '100000'] })), OWNER);
+    expect(rows(covered.positions)).toEqual([['V', 'recoverable', APT, '200', WIPED_AT], ['V', 'recoverable', USDC, '50', WIPED_AT]]);
+    expect(covered.positions[0].steps[0].arguments).toEqual([VAULT, '100']);
+    const empty = await goblinWipedOut.read(context(chain({ wallet: '100', stores: ['0', '1000'] })), OWNER);
+    expect(rows(empty.positions)).toEqual([['V/store-short', 'blocked', APT, '200', WIPED_AT], ['V/store-short', 'blocked', USDC, '50', WIPED_AT]]);
+  });
+
+  it('pays an account on the vault\'s name list at the closed position\'s amounts', async () => {
+    const r = await goblinWipedOut.read(context(chain({ wallet: '100', named: true })), OWNER);
+    // 100 shares of the position's 100 APT and 400 USDC units: 10 and 40, within the stores' pro-rata shares (10, 100).
+    expect(rows(r.positions)).toEqual([['V', 'recoverable', APT, '10', WIPED_AT], ['V', 'recoverable', USDC, '40', WIPED_AT]]);
+    expect(r.positions[0].steps[0]).toMatchObject({ arguments: [VAULT, '100'], expectedOutputs: [{ asset: APT, raw: '10' }, { asset: USDC, raw: '40' }] });
+  });
+
+  it('leaves out the MasterChef\'s own account and reads nothing more for an owner without shares', async () => {
+    expect((await goblinWipedOut.read(context(chain({ wallet: '100' })), GOBLIN_CHEF_ACCOUNT)).positions).toEqual([]);
+    const c = chain();
+    expect((await goblinWipedOut.read(context(c), OWNER)).positions).toEqual([]);
+    expect(c.calls.filter(x => x.startsWith('view'))).toEqual([]);
   });
 });

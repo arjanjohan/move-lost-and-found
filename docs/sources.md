@@ -557,6 +557,43 @@ A bridge leaves funds behind when a transfer arrived but was never claimed or co
 - **Sized (2026-10-24, keyed, 235 requests):** 2,343 owners hold about $1 or more. APT: 317,000 owed to 590 lenders against 0.013 APT of cash (the reserve is lent out, mostly to Echo's own wallet). The 40 largest APT lenders (98.7% of it) were read through the source: 13 have debt and are left out; the rest are owed 284,146 APT, all `blocked` (~$233K at APT $0.82). Also owed: lzUSDT 7,795 and lzUSDC 6,867 (partly lent out), eAPT 3,197, Echo-wrapped USDt 4,729 and USDC 2,324, aBTC 72.8 to users (unpriced; the cash covers it), TruAPT 101, xBTC 0.91.
 - **Not read yet (#36):** eAPT liquid staking (unstake requests) and Echo's strategy vaults (`0xf52c…ca7f`).
 
+## goblin-wiped-out-vaults
+
+- **What:** shares left in the ten Goblin vaults that Goblin wiped out. Goblin is an Aptos protocol whose vaults manage Hyperion liquidity (`0x19bc…cd55`).
+- **Status (checked 2026-10-26):** these vaults are deprecated.
+  - On 2026-08-10, 07:53–08:03 UTC, Goblin's admin (`0xf3e2…`) called `vaults::wipe_out` on ten vaults. The APT-goAPT vault's recorded amounts were updated on 2026-08-20.
+  - Each wipe-out closed the vault's Hyperion position and moved the proceeds into the vault's `ClearOut` stores (`able_to_deposit: false`, `able_to_withdraw: true`).
+  - No notice was found; the on-chain wipe-out is the evidence. Goblin's other vaults and goAPT stay live.
+  - Aged from each vault's wipe-out (APT-goAPT: 2026-08-20), or from the holding's own later change: the share store's last change, or a staker's last MasterChef call.
+- **DefiLlama (#40):** Goblin's TVL fell to ~$42 for two reasons.
+  - Its adapter skips vaults whose Hyperion position aborts, which is every wiped-out vault.
+  - Owners withdrew from the other vaults (2026-09-26, 2026-10-08/09).
+  - A private xBTC-aBTC vault (`0xb77d…`) still holds ~1.75 aBTC in a live position, which DefiLlama can't price.
+- **Payout (simulated 2026-10-26):** `remove_as_pair(vault, shares)` pays from the ClearOut stores, first come, first served. It aborts (`EINSUFFICIENT_BALANCE`) once a store is short of the claim.
+  - Most holders are paid what the vault recorded at the wipe-out: `get_token_amount_by_share`, which is `actual_token_*_amount` × shares / total shares.
+  - Accounts on the vault's `name_list` (1–7 per vault) are paid at the closed position's own amounts, `position_amount_*` × shares / total shares, which are mostly lower. Listed and unlisted holders were simulated in three vaults; each was paid exactly as computed.
+  - The recorded amounts stay fixed as holders withdraw. So in most vaults the store now holds less than all shares are owed. APT-USDC, for example, holds 238.6 APT against 18,532 APT of claims.
+- **Positions:**
+  - Per vault, the wallet's shares (primary store) and the shares staked in Goblin's MasterChef (`0x1ddd…7b92`; `get_user_info(pool, owner)`) are separate parts.
+  - Each part is counted as `recoverable` for its pro-rata share of each store, up to its claim (decided 2026-10-26, as for Echo).
+  - The rest of the claim is a separate `blocked` part (`store_short`, locator `<part>/store-short`). Where one token's store is empty, nothing can be withdrawn, so the whole claim is blocked.
+  - The MasterChef's own account (`0x1fdb…370c`), which holds the staked shares, is left out.
+- **Recovery:**
+  - For staked shares, call `masterchef::withdraw(pool, amount)` first.
+  - Then call `vaults::remove_as_pair(vault, shares)` with as many shares as the stores cover now (all of them while they cover the claim). The step lists what that pays.
+  - Withdrawing early can pay more than the counted share, up to the full claim.
+  - 13 simulated withdrawals (2026-10-26) all succeeded and paid exactly the step's outputs: per vault the largest wallet part, two named accounts, and the largest stake's unstake.
+- **Enumeration:**
+  - Every holder of the ten vaults' shares (`current_fungible_asset_balances`). Pages are keyed on `last_transaction_version`, because ordering by store or owner times out for the APT-USDt vault's 840 stores.
+  - Every sender of `masterchef::deposit` and `zap::zap_in_*` (stakers). Together they cover each MasterChef pool's `total_amount` (checked 2026-10-26).
+  - Re-read weekly: every withdrawal changes what the stores hold for everyone else.
+- **Sanity:** per vault and token, the counted amount stays ≤ the store, and what the positions are owed stays ≤ what all shares are owed (at the recorded amounts, or at the position's amounts where those are higher).
+- **Rehearsal (2026-10-26, keyed, 30,455 requests):**
+  - 4,190 candidates, all complete; sanity ok.
+  - 10,116 positions of 3,587 owners. **$9.8K is recoverable** across 3,475 owners, 104 of them with ≥ $10; 759 of those positions hold unpriced goAPT, USD1, xBTC, aBTC or WBTC. The rest is `blocked`.
+  - Owed in all (face): $32.6K.
+  - Nothing is 90+ days old yet: the wipe-outs were on 2026-08-10, so positions count from 2026-11-08.
+
 ## aries-wound-down (check-only)
 
 - **What:** deposits left in Aries Markets (Aptos lending) after its wind-down, read on the check page only: no dashboard totals (decided 2026-10-22). Re-reading its ~455K profiles each run would cost ~285K reads.
