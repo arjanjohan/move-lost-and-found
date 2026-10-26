@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RequestCapReached } from '../src/node/client.ts';
 import { SOURCES } from '../src/shared/sources/index.ts';
 import { ENUMERATORS } from '../src/node/enumerators.ts';
-import { echoWoundDownEnumerator, goblinWipedOutEnumerator } from '../src/node/enumerators.ts';
+import { amnisWithdrawalsEnumerator, echoWoundDownEnumerator, goblinWipedOutEnumerator } from '../src/node/enumerators.ts';
 import { GOBLIN_CHEF, GOBLIN_CHEF_ACCOUNT, WIPED_VAULTS } from '../src/shared/sources/goblin-wiped-out.ts';
 import { aaveFrozenEnumerator, animeswapClosedEnumerator, canopyFrozenEnumerator, earniumClosedEnumerator, houstonClosedEnumerator, auroClosedEnumerator, econiaIdleEnumerator, type Enumerator } from '../src/node/enumerators.ts';
 import { ANIMESWAP_POOLS } from '../src/shared/sources/animeswap-closed.ts';
@@ -702,5 +702,18 @@ describe('goblin enumerator', () => {
     const over = await goblinWipedOutEnumerator.sanity!(c, ledger, [...ok, p(`${FIRST}/staked`, addr('aa'), '1', 'recoverable')]);
     expect(over.ok).toBe(false);
     expect(over.detail).toContain(`${WIPED_VAULTS.get(FIRST)!.name} token 0: counted 101 > store 100`);
+  });
+});
+
+describe('collection owners', () => {
+  it('pages the collection\'s token data, listing each live token under its current owner and skipping burned ones', async () => {
+    const seen: string[] = [];
+    const token = (n: number, owner?: string) => ({ token_data_id: addr(`7${n}`), current_token_ownerships: owner ? [{ owner_address: owner }] : [] });
+    const first = Array.from({ length: 100 }, (_, i) => token(i, i === 3 ? addr(1) : i === 8 ? addr(2) : i === 9 ? addr(1) : undefined));
+    const c = fakeChain({ gql: (_q, vars) => { seen.push(String(vars.after)); return { current_token_datas_v2: vars.after === '' ? first : [token(200, addr(2))] }; } });
+    const r = await amnisWithdrawalsEnumerator.run(c, undefined);
+    expect(r.candidates).toEqual([{ owner: addr(1), hint: { tokens: [addr('73'), addr('79')] } }, { owner: addr(2), hint: { tokens: [addr('7200'), addr('78')].sort() } }]);
+    expect(seen).toEqual(['', addr('799')]);
+    expect(r.pages).toBe(2);
   });
 });

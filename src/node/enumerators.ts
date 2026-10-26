@@ -185,24 +185,27 @@ export const tortugaTicketsEnumerator = entrySenders('tortuga-tickets',
       detail: `found ${found} of ${outstanding} outstanding (${pct(found, outstanding)})` };
   });
 
-// Keyset on token_data_id; a token can only have one current owner with amount > 0 (non-fungible).
-const COLLECTION_QUERY = `query($c:String!,$after:String!){ current_token_ownerships_v2(where:{current_token_data:{collection_id:{_eq:$c}},
-  amount:{_gt:"0"}, token_data_id:{_gt:$after}}, order_by:{token_data_id:asc}, limit:${PAGE}){ token_data_id owner_address } }`;
+// Keyset on token_data_id over the collection's token data (every token ever minted, burned ones included), each with its
+// current owner nested (a token has at most one with amount > 0: non-fungible). Filtering ownerships through
+// current_token_data, or token data through their ownerships, times out on the indexer for Amnis's withdrawal tokens
+// (6–13 s a page against a 10 s limit, 2026-10-26, #53); this takes ~1 s a page.
+const COLLECTION_QUERY = `query($c:String!,$after:String!){ current_token_datas_v2(where:{collection_id:{_eq:$c}, token_data_id:{_gt:$after}},
+  order_by:{token_data_id:asc}, limit:${PAGE}){ token_data_id current_token_ownerships(where:{amount:{_gt:"0"}}){ owner_address } } }`;
 
 /** Current owners of every token in a collection, with their token ids as the read hint. */
 function collectionOwners(sourceId: string, collection: string, sanity: Enumerator['sanity']): Enumerator {
   return {
     sourceId,
     processor: 'token_v2_processor',
-    scope: `current owners of tokens in collection ${collection} (current_token_ownerships_v2, amount > 0)`,
+    scope: `current owners of tokens in collection ${collection} (current_token_datas_v2 with current_token_ownerships, amount > 0)`,
     async run(chain) {
       const tokens = new Map<string, string[]>();
       let after = '', pages = 0;
       for (;;) {
-        const page = (await chain.gql(COLLECTION_QUERY, { c: collection, after })).current_token_ownerships_v2;
+        const page = (await chain.gql(COLLECTION_QUERY, { c: collection, after })).current_token_datas_v2;
         pages++;
-        for (const t of page) {
-          const owner = normalizeAddress(t.owner_address);
+        for (const t of page) for (const o of t.current_token_ownerships) {
+          const owner = normalizeAddress(o.owner_address);
           tokens.set(owner, [...(tokens.get(owner) ?? []), normalizeAddress(t.token_data_id)]);
         }
         if (page.length < PAGE) break;
