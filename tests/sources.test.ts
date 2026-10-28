@@ -892,6 +892,7 @@ describe('econia accounts', () => {
   });
 
   it('reads only the own accounts of an owner too large for get_market_accounts, listed by the indexer and read on chain', async () => {
+    let indexed = '100';   // the table processor's watermark; the read is at version 100
     // Market 7, own account: 200 base units (all in asks), 50 quote units (10 in bids); the indexer lists own keys only.
     const id7 = ((7n << 64n) | 0n).toString();
     const items: Record<string, unknown> = { [id7]: { base_total: '200', base_available: '0', quote_total: '50', quote_available: '40' } };
@@ -903,16 +904,29 @@ describe('econia accounts', () => {
         throw new Error(fn);
       },
       resource: () => ({ map: { handle: '0xh' } }),
-      gql: (q, vars) => { seen.push(q); return { current_table_items: vars.after === '' ? [{ key: '0x00000000000000000700000000000000', decoded_key: id7 }] : [] }; },
+      gql: (q, vars) => {
+        seen.push(q);
+        if (q.includes('processor_status')) return { processor_status: [{ last_success_version: indexed }] };
+        return { current_table_items: vars.after === '' ? [{ key: '0x00000000000000000700000000000000', decoded_key: id7 }] : [] };
+      },
       tableItem: (_h, _k, _v, key) => items[key as string],
     });
     const r = await econiaIdleAccounts.read(context(c), OWNER, {});
     expect(r.complete).toBe(true);
-    expect(seen[0]).toContain('_like:"0x0000000000000000%"');
+    expect(seen.find(q => q.includes('current_table_items'))).toContain('_like:"0x0000000000000000%"');
     expect(r.positions.map(p => [p.locator, p.asset, p.expectedPayout[0].raw])).toEqual([['market-7', APT, '200'], ['market-7', LZUSDC, '50']]);
     expect(r.positions[0].steps.map(s => [s.function, s.arguments])).toEqual([
       [`${ECONIA}::market::cancel_all_orders_user`, ['7', 'true']], [`${ECONIA}::market::cancel_all_orders_user`, ['7', 'false']],
       [`${ECONIA}::user::withdraw_to_coinstore<${addr(1)}::aptos_coin::AptosCoin>`, ['7', '200']]]);
+    // The table index behind the read's version: an account registered since could be missing, so the read is incomplete.
+    indexed = '99';
+    vi.useFakeTimers();
+    try {
+      const pending = econiaIdleAccounts.read(context(c), OWNER, {});
+      await vi.runAllTimersAsync();
+      const behind = await pending;
+      expect([behind.complete, behind.positions, behind.errors[0]]).toEqual([false, [], expect.stringContaining('behind the read')]);
+    } finally { vi.useRealTimers(); }
   });
 
   it('counts coins resting in open orders (Econia is closed), cancelling them before the withdrawal', async () => {

@@ -53,14 +53,16 @@ interface MarketAccount { market_id: string; custodian_id: string; base_total: s
  *  first 8 bytes are zero. */
 const OWN_KEYS_QUERY = `query($h:String!,$after:String!){ current_table_items(where:{table_handle:{_eq:$h}, key:{_like:"0x0000000000000000%", _gt:$after}},
   order_by:{key:asc}, limit:100){ key decoded_key } }`;
+const INDEX_WAIT_ATTEMPTS = 10;
+/** The indexer processor that writes current_table_items. */
+const TABLE_WATERMARK_QUERY = `query{ processor_status(where:{processor:{_eq:"default_processor"}}){ last_success_version } }`;
 
 /** get_market_accounts lists every account with its orders. For an account with many (a Fliq bettor: 1,106 accounts,
  *  1,104 of them Fliq's question markets under its custodian) that exceeds the view's execution limit
  *  (EXECUTION_LIMIT_REACHED; so does get_all_market_account_ids_for_user, 2026-10-26, #55). Then only the owner's own
  *  (custodian 0) accounts are read, the only ones counted: the indexer lists their keys in MarketAccounts.map, and each
  *  is read from that table on chain. The same totals as the view (checked for 6 accounts), and coins locked (total above
- *  available) on a side wherever the view lists open orders on it. An own account registered after the indexer's
- *  watermark is missed until a later run. */
+ *  available) on a side wherever the view lists open orders on it. */
 async function marketAccounts(ctx: ReadContext, owner: string): Promise<MarketAccount[]> {
   const version = ctx.ledger.version;
   try {
@@ -71,6 +73,16 @@ async function marketAccounts(ctx: ReadContext, owner: string): Promise<MarketAc
     if (!String(err).includes('EXECUTION_LIMIT_REACHED')) throw err;
   }
   const table = await ctx.chain.resource(owner, `${ECONIA}::user::MarketAccounts`, version);
+  // The listing is indexer state: trusted only once the table processor has passed the read's version, else an account
+  // registered since could be missed for good (owners without positions are not re-read). It runs about a second
+  // behind the chain, so this waits up to 30 s; still behind, the read is incomplete, which keeps it due for the next run.
+  for (let attempt = 1; ; attempt++) {
+    const [status] = (await ctx.chain.gql(TABLE_WATERMARK_QUERY)).processor_status;
+    if (status && BigInt(status.last_success_version) >= BigInt(version)) break;
+    if (attempt === INDEX_WAIT_ATTEMPTS)
+      throw new Error(`Econia accounts too large for the views: the table index (${status?.last_success_version ?? 'unknown'}) is behind the read's version ${version}`);
+    await new Promise(resolve => setTimeout(resolve, 3_000));
+  }
   const own = await gqlAll<{ key: string; decoded_key: string }>(ctx.chain, OWN_KEYS_QUERY, { h: table.map.handle }, 'current_table_items', 'key');
   return mapLimit(own.map(k => k.decoded_key), 4, async id => {
     const a = await ctx.chain.tableItem(table.map.handle, 'u128', `${ECONIA}::user::MarketAccount`, id, version);
