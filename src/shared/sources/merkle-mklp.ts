@@ -1,6 +1,7 @@
 // Merkle Trade house-LP tokens (MKLP) still held after Merkle's wind-down. withdraw and redeem now abort
-// E_DEPRECATED; the only exit is release_mklp, which the team must whitelist per wallet. Amounts are MKLP units:
-// the vault's current backing per MKLP is not read, so the value stays unpriced rather than guessed.
+// E_DEPRECATED; the only exit is release_mklp, which the team must whitelist per wallet. Amounts are MKLP units, left
+// unpriced: release_mklp pays USDC from a store the team funds (1.0457 USDC per MKLP in June and July 2026), which held
+// 3.62 USDC on 2026-10-29 against 136.5K MKLP (USDC); nothing on chain backs a price.
 import { iso, positionIds } from '../accounting.ts';
 import { mapLimit, normalizeAddress, transactionTime } from '../chain.ts';
 import type { Position, ReadContext, ReadResult, SourceDef } from '../types.ts';
