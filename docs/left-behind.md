@@ -78,7 +78,7 @@ Per position:
 - **Claimable now:** `recoverableUsd` of every `recoverable` position, any age.
 - **Left behind 90+ days:** the claimable positions aged ≥ 90 days on an `ageBasis` that counts (table above).
 
-Face value, `blocked`, `team_gated`, estimated-age and unpriced value are reported separately.
+Face value, `blocked`, `team_gated`, estimated-age and unpriced value are reported separately. Unpriced value is published per source as amounts per asset and status (the payout when claimable, what is owed otherwise), with positions and owners, the 25 assets with the most positions listed; source pages show it as "Also owed, without a price" and the dashboard lists the top assets across sources.
 
 ## Snapshots
 

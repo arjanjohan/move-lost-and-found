@@ -3,7 +3,8 @@
 // Usage: node src/node/snapshot.ts [--source id] [--limit N] [--cap N] [--state path] [--out path] [--anonymous]
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { ageDays, HEADLINE_AGE_DAYS, headlineAge, sourceTotals, usd, type PriceBook } from '../shared/accounting.ts';
+import { ageDays, HEADLINE_AGE_DAYS, headlineAge, sourceTotals, unpricedAssets, usd, type PriceBook } from '../shared/accounting.ts';
+import { ASSETS, assetDisplay, type AssetDisplay } from '../shared/assets.ts';
 import { OWNER_RULES, readClassified } from '../shared/owners.ts';
 import { mapLimit } from '../shared/chain.ts';
 import { SOURCES } from '../shared/sources/index.ts';
@@ -163,6 +164,12 @@ export function runOrder<T extends { id: string }>(sources: T[], only: string | 
   return [...sources].sort((a, b) => rank(a) - rank(b));
 }
 
+/** What a source's positions hold without a price, per asset and status, each with its symbol and decimals where known. */
+async function unpricedWithDisplay(positions: Position[], prices: PriceBook, display: (id: string) => Promise<AssetDisplay | null>) {
+  const { assets, more } = unpricedAssets(positions, prices);
+  return { assets: await Promise.all(assets.map(async a => ({ ...a, ...((await display(a.asset)) ?? {}) }))), more };
+}
+
 async function main() {
   const state = new State(STATE);
   const { chains, usage } = readers(CAP, { anonymous: args.includes('--anonymous') });
@@ -174,6 +181,13 @@ async function main() {
   const panora = process.env.PANORA_API_KEY ? panoraProvider(process.env.PANORA_API_KEY, prices[APT]?.usd ?? null) : undefined;
 
   const sources: SnapshotSource[] = [];
+  // Display identity of the assets sources hold without a price: the asset registry, else the asset's chain (once each).
+  const displays = new Map<string, Promise<AssetDisplay | null>>();
+  const display = (id: string) => {
+    if (ASSETS[id]) return Promise.resolve(ASSETS[id]);
+    if (!displays.has(id)) displays.set(id, assetDisplay(id.startsWith('movement:') ? chains.movement : chains.aptos, id.replace(/^movement:/, '')).catch(() => null));
+    return displays.get(id)!;
+  };
   for (const def of runOrder(SOURCES.filter(s => !s.checkOnly), ONLY, id => state.candidateCount(id) > 0)) {
     const en = ENUMERATORS.find(e => e.sourceId === def.id);
     if (!en) throw new Error(`No enumerator for ${def.id}`);
@@ -197,7 +211,7 @@ async function main() {
       id: def.id, chain: def.chain, title: def.title, summary: def.summary, category: def.category, inclusionRule: def.inclusionRule,
       protocolStatus: def.protocolStatus, howTo: def.howTo, officialUrl: def.officialUrl, headlineAgeBases: def.headlineAgeBases,
       run, ownerRules: reclassifiedUnder(state, def.id), lastSuccessAt: run.completeness === 'complete' ? run.verification.end : prev?.lastSuccessAt,
-      totals: sourceTotals(def, positions, prices, now), sizeBands: sizeBands(positions, prices),
+      totals: sourceTotals(def, positions, prices, now), sizeBands: sizeBands(positions, prices), unpriced: await unpricedWithDisplay(positions, prices, display),
     });
     console.error(`${def.id}: ${run.completeness} ${run.degradedReasons.join('; ')}`);
   }

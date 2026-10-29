@@ -1,7 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import { snapshot } from '../../lib/data.ts';
-import { count, date, usd } from '../../lib/format.ts';
+import { count, date, units, usd } from '../../lib/format.ts';
 import type { SnapshotSource } from '../../../shared/snapshot.ts';
 import { NETWORKS, type Network } from '../../../shared/chain.ts';
 
@@ -17,6 +17,10 @@ const bands = s.sizeBands.map((b, i, all) => ({
   label: i === 0 ? `under ${usd(b.upTo!)}` : b.upTo === null ? `${usd(all[i - 1].upTo!)}+` : `${usd(all[i - 1].upTo!)} – ${usd(b.upTo)}`,
   positions: b.positions,
 }));
+const statusLabel: Record<string, string> = {
+  recoverable: 'You can claim', team_gated: 'Needs the team', blocked: 'May not work', contract_held: 'Held by a contract', unknown: 'Unknown',
+};
+const unpriced = s.unpriced?.assets ?? [];
 const basisLabel: Record<string, string> = {
   onchain_maturity: 'On-chain unlock or maturity time',
   protocol_closure: 'Protocol closure date',
@@ -69,6 +73,28 @@ const basisLabel: Record<string, string> = {
     Age basis of claimable positions:{' '}
     {Object.entries(t.byAgeBasis).filter(([, b]) => b.positions).map(([k, b]) => `${basisLabel[k]}: ${count(b.positions)}`).join(' · ')}
   </p>
+
+  {unpriced.length > 0 && (
+    <>
+      <h2>Also owed, without a price</h2>
+      <p class="muted">Not in any USD figure on this site: these assets have no price bound to their exact identity, or its quote is older than 7 days. Amounts are what a claim pays out (what is owed, where it cannot be claimed now).</p>
+      <div class="table">
+        <table>
+          <thead><tr><th>Asset</th><th>Status</th><th class="num">Amount</th><th class="num">Positions</th><th class="num">Wallets</th></tr></thead>
+          <tbody>{unpriced.map(a => (
+            <tr>
+              <td>{a.symbol ?? 'Unknown asset'}<div class="muted"><code>{a.asset.replace(/^movement:/, '')}</code></div></td>
+              <td>{statusLabel[a.status] ?? a.status}</td>
+              <td class="num">{a.decimals !== undefined ? units(a.raw, a.decimals) : `${a.raw} raw units`}</td>
+              <td class="num">{count(a.positions)}</td>
+              <td class="num">{count(a.owners)}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+      {(s.unpriced?.more ?? 0) > 0 && <p class="muted">And {count(s.unpriced!.more)} more assets with fewer positions.</p>}
+    </>
+  )}
 
   <h2>Position sizes</h2>
   <div class="table">

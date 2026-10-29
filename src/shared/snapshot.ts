@@ -1,5 +1,5 @@
 // Published snapshot format: aggregates only, never owner addresses.
-import type { PriceBook, SourceTotals } from './accounting.ts';
+import type { PriceBook, SourceTotals, UnpricedAsset } from './accounting.ts';
 import type { MarketTable } from './market.ts';
 import type { SourceDef } from './types.ts';
 
@@ -28,6 +28,9 @@ export interface SnapshotSource {
   totals: SourceTotals;
   /** Recoverable positions by expected payout (USD) band: < 1, 1–10, …, ≥ 10k. */
   sizeBands: { upTo: number | null; positions: number }[];
+  /** What counted positions hold without a price, per asset and status, with the asset's display identity where known
+   *  (absent before 2026-10-29). */
+  unpriced?: { assets: (UnpricedAsset & { symbol?: string; decimals?: number })[]; more: number };
 }
 
 export interface Snapshot {
