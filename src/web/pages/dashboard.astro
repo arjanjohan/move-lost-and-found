@@ -2,7 +2,7 @@
 import Donut from '../components/Donut.astro';
 import Base from '../layouts/Base.astro';
 import { byProtocol, snapshot } from '../lib/data.ts';
-import { count, date, usd } from '../lib/format.ts';
+import { count, date, units, usd } from '../lib/format.ts';
 import { NETWORKS, type Network } from '../../shared/chain.ts';
 
 type Source = NonNullable<typeof snapshot>['sources'][number];
@@ -18,6 +18,18 @@ const EMPTY = { usd: 0, positions: 0, unpriced: 0 };
 const bucketOf = (s: Source, key: (typeof statuses)[number][0]) =>
   (key === 'recoverable' ? s.totals.byStatus[key] : (s.totals.faceByStatus?.[key] ?? s.totals.byStatus[key])) ?? EMPTY;
 const sum = (sources: Source[], f: (s: Source) => number) => sources.reduce((t, s) => t + f(s), 0);
+/** The assets held without a price across a view's sources, most positions first (each source publishes its top 25). */
+const topUnpriced = (sources: Source[]) => {
+  const rows = new Map<string, { asset: string; symbol?: string; decimals?: number; raw: bigint; positions: number; sources: Map<string, string> }>();
+  for (const s of sources) for (const a of s.unpriced?.assets ?? []) {
+    const row = rows.get(a.asset) ?? { asset: a.asset, symbol: a.symbol, decimals: a.decimals, raw: 0n, positions: 0, sources: new Map() };
+    row.raw += BigInt(a.raw);
+    row.positions += a.positions;
+    row.sources.set(s.id, s.title);
+    rows.set(a.asset, row);
+  }
+  return [...rows.values()].sort((a, b) => b.positions - a.positions).slice(0, 10);
+};
 // Every view filters everything below the toggle. Wallets are unique across a view's sources: the snapshot gives them
 // for both chains, and per chain from 2026-10-24.
 const views = [
@@ -75,6 +87,25 @@ const views = [
             })}
           </div>
           <p class="muted">"You can claim" is what can be withdrawn now, any age; the others are what is owed but cannot be taken out now.</p>
+          {topUnpriced(v.sources).length > 0 && (
+            <>
+              <h2>Without a price</h2>
+              <p class="muted">Assets these positions hold that have no price bound to their exact identity (or only a quote older than 7 days), so they are in no USD figure above. Each source's page lists its own.</p>
+              <div class="table">
+                <table>
+                  <thead><tr><th>Asset</th><th class="num">Amount</th><th class="num">Positions</th><th>Sources</th></tr></thead>
+                  <tbody>{topUnpriced(v.sources).map(a => (
+                    <tr>
+                      <td>{a.symbol ?? 'Unknown asset'}</td>
+                      <td class="num">{a.decimals !== undefined ? units(a.raw.toString(), a.decimals) : `${a.raw} raw units`}</td>
+                      <td class="num">{count(a.positions)}</td>
+                      <td>{[...a.sources].map(([id, title], i) => <>{i > 0 && ', '}<a href={`/source/${id}`}>{title}</a></>)}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </>
+          )}
 
           <h2>Sources</h2>
           <div class="table">

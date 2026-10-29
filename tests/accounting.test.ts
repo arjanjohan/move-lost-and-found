@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageDays, assertUniqueIds, debtBlocker, freshPrices, positionIds, sourceTotals, usd, type PriceBook } from '../src/shared/accounting.ts';
+import { ageDays, assertUniqueIds, debtBlocker, freshPrices, positionIds, sourceTotals, UNPRICED_LIMIT, unpricedAssets, usd, type PriceBook } from '../src/shared/accounting.ts';
 import { APT } from '../src/shared/sources/delegation.ts';
 import type { AgeBasis, Position, Status } from '../src/shared/types.ts';
 import { addr } from './fake-chain.ts';
@@ -127,3 +127,24 @@ describe('freshPrices', () => {
   });
 });
 
+
+describe('unpriced assets', () => {
+  it('lists, per asset and status, what counted positions hold without a price: payouts when claimable, what is owed otherwise', () => {
+    const MKL = '0xmkl', LP = 'movement:0xlp';
+    const blocked = { ...pos({ owner: addr(3), locator: 'b', asset: LP, apt: 5, status: 'blocked' }), expectedPayout: [] };
+    const positions = [
+      pos({ owner: addr(1), locator: 'a', asset: MKL, apt: 2 }), pos({ owner: addr(1), locator: 'c', asset: MKL, apt: 1 }),
+      pos({ owner: addr(2), locator: 'a', asset: MKL, apt: 4 }), pos({ owner: addr(2), locator: 'd' }), blocked,
+      // Never counted: a borrower's supply, and an indexer-only row.
+      { ...pos({ owner: addr(4), locator: 'e', asset: MKL }), blockers: [debtBlocker('owes')] },
+      { ...pos({ owner: addr(5), locator: 'f', asset: MKL }), confidence: 'indexer_only' as const },
+    ];
+    expect(unpricedAssets(positions, prices)).toEqual({ more: 0, assets: [
+      { asset: MKL, status: 'recoverable', raw: '700000000', positions: 3, owners: 2 },
+      { asset: LP, status: 'blocked', raw: '500000000', positions: 1, owners: 1 },
+    ] });
+    // Beyond the limit, the assets with the fewest positions are only counted.
+    const many = Array.from({ length: UNPRICED_LIMIT + 3 }, (_, i) => pos({ owner: addr(1), locator: `m${i}`, asset: `0xa${i}` }));
+    expect(unpricedAssets(many, prices).more).toBe(3);
+  });
+});

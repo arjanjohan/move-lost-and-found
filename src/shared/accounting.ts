@@ -121,6 +121,30 @@ export function sourceTotals(source: Pick<SourceDef, 'headlineAgeBases'>, all: P
   };
 }
 
+/** An asset that counted positions hold without a price, per status: the amount a USD total would take (the payout when
+ *  recoverable, what is owed otherwise, as the totals do), its positions and their owners. */
+export interface UnpricedAsset { asset: string; status: Status; raw: string; positions: number; owners: number }
+/** The rows a source publishes, most positions first; the rest are counted in `more`. */
+export const UNPRICED_LIMIT = 25;
+
+export function unpricedAssets(all: Position[], prices: PriceBook): { assets: UnpricedAsset[]; more: number } {
+  const rows = new Map<string, { asset: string; status: Status; raw: bigint; positions: number; owners: Set<string> }>();
+  for (const p of all.filter(counted)) {
+    for (const a of p.status === 'recoverable' ? p.expectedPayout : p.grossClaim) {
+      if (prices[a.asset]) continue;
+      const key = `${p.status}|${a.asset}`;
+      const row = rows.get(key) ?? { asset: a.asset, status: p.status, raw: 0n, positions: 0, owners: new Set<string>() };
+      row.raw += BigInt(a.raw);
+      row.positions++;
+      row.owners.add(p.owner);
+      rows.set(key, row);
+    }
+  }
+  const sorted = [...rows.values()].sort((a, b) => b.positions - a.positions || (b.raw > a.raw ? 1 : b.raw < a.raw ? -1 : 0));
+  return { assets: sorted.slice(0, UNPRICED_LIMIT).map(r => ({ asset: r.asset, status: r.status, raw: r.raw.toString(), positions: r.positions, owners: r.owners.size })),
+    more: Math.max(0, sorted.length - UNPRICED_LIMIT) };
+}
+
 function topOwnerShare(positions: Position[], value: (p: Position) => number | null): number {
   const perOwner = new Map<string, number>();
   for (const p of positions) perOwner.set(p.owner, (perOwner.get(p.owner) ?? 0) + (value(p) ?? 0));
