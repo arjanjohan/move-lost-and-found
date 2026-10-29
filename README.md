@@ -38,7 +38,7 @@ Sources (evidence for each in [docs/sources.md](docs/sources.md)):
 | `movement-native-delegation` | Movement | Unstaked MOVE whose lockup ended, never withdrawn |
 | `movement-inactive-validator` | Movement | MOVE still staked with a validator that left the set |
 | `canopy-ended-rewards` | Movement | Canopy staking rewards from reward periods that ended, never claimed |
-| `canopy-frozen-vaults` | Movement | Shares left in Canopy vaults that Canopy closed to deposits (most cannot be withdrawn today) |
+| `canopy-frozen-vaults` | Movement | Shares left in Canopy vaults that Canopy closed to deposits (app retiring 2026-12-22; withdrawing works for 16 vaults, aborts for 18) |
 
 - **Dashboard:** weekly aggregate snapshot per source. Only totals are published, never addresses.
 - **Protocol coverage** (`/coverage`): every Aptos and Movement protocol we know of (DefiLlama's list plus a few it misses) with its status: counted, dormant, needs a decision, blocked, too small, nothing left behind, not checked yet, or out of scope. The list is `src/shared/protocols.ts`; tests keep it in sync with the sources.

@@ -3,8 +3,8 @@ import { ownerKind } from '../src/shared/owners.ts';
 import { sourceTotals } from '../src/shared/accounting.ts';
 import { assetDisplay } from '../src/shared/assets.ts';
 import { AAVE, aaveFrozenReserves, AAVE_UNFROZEN_AT, USDC } from '../src/shared/sources/aave-frozen.ts';
-import { canopyEndedRewards } from '../src/shared/sources/canopy-rewards.ts';
-import { CANOPY_VAULTS, canopyFrozenVaults, FROZEN_VAULTS } from '../src/shared/sources/canopy-frozen.ts';
+import { CANOPY_REWARDS, canopyEndedRewards } from '../src/shared/sources/canopy-rewards.ts';
+import { CANOPY_ROUTER, CANOPY_VAULTS, canopyFrozenVaults, FROZEN_VAULTS } from '../src/shared/sources/canopy-frozen.ts';
 import { APT, delegation, MOVE, movementDelegation } from '../src/shared/sources/delegation.ts';
 import { EARNIUM, EARNIUM_CLOSED_AT, earniumClosedLp } from '../src/shared/sources/earnium-closed.ts';
 import { ANIMESWAP, ANIMESWAP_CLOSED_AT, ANIMESWAP_POOLS, animeswapClosedLp, isqrt, pairOf } from '../src/shared/sources/animeswap-closed.ts';
@@ -1225,7 +1225,7 @@ describe('canopy frozen vaults', () => {
   const MOVE0 = byName('CV MOVE-0'), SUSDA = byName('CV sUSDa-46'), RSETH = byName('CV rsETH-26');
   const share = (v: string) => addr(`5${v.slice(3, 10)}`);
   type Held = Record<string, { wallet?: string; staked?: string; open?: boolean }>;
-  // Each vault pays 2 asset units per share; its withdrawal map names one strategy.
+  // Each vault pays 2 asset units per share.
   const chain = (held: Held) => fakeChain({
     view: (fn, args) => {
       if (fn.endsWith('::vault::vaults_view')) return [{ vaults: [MOVE0, SUSDA, RSETH].map(v => ({ vault_address: v, shares_address: share(v), asset_address: '0xa' })) }];
@@ -1234,7 +1234,6 @@ describe('canopy frozen vaults', () => {
       if (fn === '0x1::primary_fungible_store::balance') return [held[v!]?.wallet ?? '0'];
       if (fn.endsWith('::multi_rewards::get_user_staked_balance')) return [held[v!]?.staked ?? '0'];
       if (fn.endsWith('::vault::shares_to_amount')) return [String(BigInt(args[1] as string) * 2n)];
-      if (fn.endsWith('::withdraw::get_withdrawal_map_view')) return [{ data: [{ key: { inner: addr('5a') }, value: '1' }] }];
       throw new Error(fn);
     },
     resource: (address, type) => type === `${CANOPY_VAULTS}::vault::Vault` ? { is_paused: false, deposit_limit: { vec: held[address]?.open ? [] : ['0'] } } : null,
@@ -1248,9 +1247,11 @@ describe('canopy frozen vaults', () => {
     expect(r.complete).toBe(true);
     expect(r.positions.map(p => [p.locator, p.grossClaim[0].raw, p.status, p.blockers[0]?.code, p.expectedPayout, p.claimableSince])).toEqual([
       [MOVE0, '100', 'blocked', 'withdrawal_aborts', [], '2026-10-16T14:40:46Z'], [`${MOVE0}/staked`, '200', 'blocked', 'withdrawal_aborts', [], '2026-10-16T14:40:46Z']]);
-    expect(r.positions.map(p => p.steps.map(s => [s.function.split('::').slice(-2).join('::'), s.arguments.slice(0, 2), s.arguments[3]]))).toEqual([
-      [['router::withdraw_fa', [MOVE0, JSON.stringify([addr('5a')])], '50']],
-      [['multi_rewards::withdraw', [share(MOVE0), '100'], undefined], ['router::withdraw_fa', [MOVE0, JSON.stringify([addr('5a')])], '100']]]);
+    // MOVE-0 takes withdraw_coin in Canopy's withdrawal guide; empty strategies and packets, 1% max loss, 0 min out.
+    const withdrawCoin = `${CANOPY_ROUTER}::router::withdraw_coin<0x1::aptos_coin::AptosCoin, 0x1::aptos_coin::AptosCoin>`;
+    expect(r.positions.map(p => p.steps.map(s => [s.function, s.arguments]))).toEqual([
+      [[withdrawCoin, [MOVE0, '[]', '[]', '50', 'some(100)', 'some(0)']]],
+      [[`${CANOPY_REWARDS}::multi_rewards::withdraw`, [share(MOVE0), '100']], [withdrawCoin, [MOVE0, '[]', '[]', '100', 'some(100)', 'some(0)']]]]);
     // Wallet shares received after the freeze date only the wallet part, not the stake.
     const received = await canopyFrozenVaults.read(context(chain({ [SUSDA]: { wallet: '1', staked: '9' } })), OWNER, { at: { [share(SUSDA)]: '2026-10-20T00:00:00.000Z' } });
     expect(received.positions.map(p => [p.locator, p.claimableSince])).toEqual([[SUSDA, '2026-10-20T00:00:00.000Z'], [`${SUSDA}/staked`, '2026-10-16T14:40:46Z']]);
@@ -1259,6 +1260,8 @@ describe('canopy frozen vaults', () => {
   it('is recoverable where withdrawing works, aged from a later change of the owner\'s shares', async () => {
     const r = await canopyFrozenVaults.read(context(chain({ [SUSDA]: { wallet: '7' } })), OWNER, { at: { [share(SUSDA)]: '2026-10-20T00:00:00.000Z' } });
     expect(r.positions[0]).toMatchObject({ status: 'recoverable', expectedPayout: [{ raw: '14' }], claimableSince: '2026-10-20T00:00:00.000Z' });
+    // A vault the guide lists with no other call: withdraw_fa_with_coin_type<AptosCoin>.
+    expect(r.positions[0].steps.map(s => s.function)).toEqual([`${CANOPY_ROUTER}::router::withdraw_fa_with_coin_type<0x1::aptos_coin::AptosCoin>`]);
     // A change to another vault's shares, in the wallet or staked, does not re-date this one.
     const other = await canopyFrozenVaults.read(context(chain({ [SUSDA]: { wallet: '7' } })), OWNER,
       { at: { [share(MOVE0)]: '2026-10-20T00:00:00.000Z' }, v: { [share(MOVE0)]: '300000000' } });
@@ -1297,9 +1300,9 @@ describe('canopy frozen vaults', () => {
     const c = chain({ [SUSDA]: { wallet: '7' }, [MOVE0]: { wallet: '5' } });
     const r = await canopyFrozenVaults.read(context(c), OWNER);
     expect(r.positions.map(p => [p.locator, p.ageBasis, p.claimableSince])).toEqual(expect.arrayContaining([[SUSDA, 'unknown', undefined], [MOVE0, 'unknown', undefined]]));
-    // MOVE-0's withdrawal map fails: sUSDa is still read, and the read is incomplete.
+    // MOVE-0's shares cannot be valued: sUSDa is still read, and the read is incomplete.
     const failing = await canopyFrozenVaults.read(context({ ...c, view: async (fn, args, typeArgs, v) =>
-      fn.endsWith('::withdraw::get_withdrawal_map_view') && args[0] === MOVE0 ? Promise.reject(new Error('view failed')) : c.view(fn, args, typeArgs, v) }), OWNER, {});
+      fn.endsWith('::vault::shares_to_amount') && args[0] === MOVE0 ? Promise.reject(new Error('view failed')) : c.view(fn, args, typeArgs, v) }), OWNER, {});
     expect(failing.complete).toBe(false);
     expect(failing.positions.map(p => p.locator)).toEqual([SUSDA]);
   });

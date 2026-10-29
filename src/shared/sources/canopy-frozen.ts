@@ -13,31 +13,33 @@ export const CANOPY_VAULTS = '0xb10bd32b3979c9d04272c769d9ef52afbc6edc4bf03982a9
 export const CANOPY_ROUTER = '0x717b417949cd5bfa6dc02822eacb727d820de2741f6ea90bf16be6c0ed46ff4b';
 const SOURCE = 'canopy-frozen-vaults';
 
-/** What a withdrawal simulated as on 2026-10-21 (a holder's shares, the vault's own withdrawal map): 'ok'; 'packet'
- *  when the strategy is MovePosition's, which needs an off-chain price packet from its operator (team-gated);
- *  else the abort. undefined: no holder to simulate with. */
-type Check = 'ok' | 'packet' | 'EINVALID_SHARES_FACTORS' | 'EINSUFFICIENT_BALANCE' | 'EUNKNOWN_STRATEGY' | undefined;
+/** What a withdrawal simulated as on 2026-10-28, with the call Canopy's self-custody withdrawal guide gives (the
+ *  vault's largest wallet holder, all its shares): 'ok'; 'packet' when the strategy is MovePosition's, which needs an
+ *  off-chain price packet from its operator (team-gated; aborts EOPTION_NOT_SET without one); else the abort.
+ *  undefined: no holder to simulate with (then or on 2026-10-21, with router::withdraw_fa, for the two vaults that had
+ *  one then and none now). */
+type Check = 'ok' | 'packet' | 'EINVALID_SHARES_FACTORS' | 'EINSUFFICIENT_BALANCE' | undefined;
 
 /** Every Canopy vault: address, name, when its deposit limit was set to 0 (SetDepositLimit), at which version, and
  *  how a withdrawal simulated. */
 export const FROZEN_VAULTS = new Map<string, { name: string; frozenAt: string; frozenVersion: number; check: Check }>(([
   ['0x58739edcac2f86e62342466f20809b268430aedf32937eba32eaac7e0bbf5233', 'CV MOVE-0', '2026-10-16T14:40:46Z', 228593609, 'EINVALID_SHARES_FACTORS'],
   ['0xd686eeb2bc110e74fe6e62e66b1247fedc4a909f4ca8188a640aa7b5098bcb42', 'CV MOVE-1', '2026-10-16T14:40:46Z', 228593609, undefined],
-  ['0x574ecf25ca263b4d9cbd43ded90bba6a52309e0cba2213f9606e4b4a3a20ffae', 'CV MOVE-2', '2026-10-16T14:40:46Z', 228593609, undefined],
+  ['0x574ecf25ca263b4d9cbd43ded90bba6a52309e0cba2213f9606e4b4a3a20ffae', 'CV MOVE-2', '2026-10-16T14:40:46Z', 228593609, 'ok'],
   ['0x3cc354520ef157b12ba7c7b1363ca220991332908c408b083aed5604bca63d10', 'CV USDC.e-3', '2026-10-16T14:40:46Z', 228593609, 'EINVALID_SHARES_FACTORS'],
   ['0x11cbcaebab975f843c47cfbd0aea69a0deae1577f53232287dff8d248c752f5d', 'CV USDT.e-4', '2026-10-16T14:40:46Z', 228593609, 'EINVALID_SHARES_FACTORS'],
   ['0x784c340abf9e3cf32a08af449d66f2f2f0977f2ac21cd63722e7ab8e0e8af34f', 'CV WETH.e-5', '2026-10-16T14:40:46Z', 228593609, 'packet'],
   ['0xbf58771707c581cb70d1495f85c7700d798ccab567335f655f0162f1b7ac67c9', 'CV WBTC.e-6', '2026-10-16T14:40:46Z', 228593609, undefined],
   ['0x539fd8eae0e2d7f1e6ae963fa0d0691efa91f40602dc96339367aeb64b3bf6fc', 'CV USDC.e-7', '2026-10-16T14:40:46Z', 228593609, undefined],
   ['0x709e32224f041e6309f502dcaf9b03d8dde6dd0c207dd24f9468c356aca0c4e8', 'CV USDT.e-8', '2026-10-16T14:40:46Z', 228593609, undefined],
-  ['0xeb049cc70ed0be8f9bf7c8ef69bba952a363d1e539892ceb5112b8f7e5413048', 'CV WETH.e-9', '2026-10-16T14:40:46Z', 228593609, undefined],
+  ['0xeb049cc70ed0be8f9bf7c8ef69bba952a363d1e539892ceb5112b8f7e5413048', 'CV WETH.e-9', '2026-10-16T14:40:46Z', 228593609, 'ok'],
   ['0x40224c58f26e4bd40adfc66ce77d99a9d492bc7b7702f7d15002e125d1487040', 'CV WBTC.e-10', '2026-10-16T14:40:46Z', 228593609, undefined],
   ['0x60ea4bbbbfa2cf715bef9c7187a90813d39aedfe9cf17c47c3d385b26bf7ee5b', 'CV USDC.e-11', '2026-10-16T14:40:46Z', 228593609, 'EINVALID_SHARES_FACTORS'],
   ['0xa08ca1f51e8ebfe5b6bdebf992ddf3c13d68591ee4ea23078c2c1e87fab22e1b', 'CV USDT.e-12', '2026-10-16T14:40:46Z', 228593609, 'EINVALID_SHARES_FACTORS'],
   ['0xedbf4a1913354a8340be89af3c75bdd0ce69f5b008548c6e46135b41d3ad28f2', 'CV WETH.e-13', '2026-10-16T14:40:46Z', 228593609, 'EINSUFFICIENT_BALANCE'],
   ['0x48d5b71948d7d45c816832a55cd2f018b41ddbe977fa90efaf69de1b5c705f45', 'CV WBTC.e-14', '2026-10-16T14:40:46Z', 228593609, 'EINVALID_SHARES_FACTORS'],
   ['0x31d0a30ae53e2ae852fcbdd1fce75a4ea6ad81417739ef96883eba9574ffe31e', 'CV MOVE-15', '2026-10-16T14:40:46Z', 228593609, 'EINVALID_SHARES_FACTORS'],
-  ['0x71c789d396157a54a71e0fe42f82cfee7d210370290a4c14550a13662e4ce75f', 'CV MER-LP-16', '2026-10-16T14:40:46Z', 228593609, 'EUNKNOWN_STRATEGY'],
+  ['0x71c789d396157a54a71e0fe42f82cfee7d210370290a4c14550a13662e4ce75f', 'CV MER-LP-16', '2026-10-16T14:40:46Z', 228593609, 'EINSUFFICIENT_BALANCE'],
   ['0xcc1bb5caea6b6becf4ae4781104a1ed9bcc2c9339aaf3b2a087d7b7134197cf2', 'CV USDC-USDTS-17', '2026-10-16T14:40:46Z', 228593609, undefined],
   ['0x6a5d6effbc15cf96c326e49d05cbb750c21ddf57d5e2a463ef39aa8dbaf2435a', 'CV MER-LP-18', '2026-10-16T14:40:46Z', 228593609, 'EINSUFFICIENT_BALANCE'],
   ['0x3d5cff19ee139afc1350b337eeb200c1baed91ab8a79d3bacf81512f84054b07', 'CV MER-LP-19', '2026-10-16T14:40:46Z', 228593609, 'ok'],
@@ -48,32 +50,54 @@ export const FROZEN_VAULTS = new Map<string, { name: string; frozenAt: string; f
   ['0x6d3b732d7219431d600668b46dfe79c626c5982f314952ceeafc49e3a3b94262', 'CV MER-LP-24', '2026-10-16T14:40:46Z', 228593609, 'ok'],
   ['0xee7f4d809125fac4cb901a6af97926083628981d4a1e6df9bf44246175ab8c6b', 'CV stBTC-25', '2026-10-16T14:40:46Z', 228593609, undefined],
   ['0x15f8246d948a5d60d4875a6fac472d69a2f80d3a98fb0676cf5edc34ef2b5743', 'CV rsETH-26', '2026-06-16T13:09:26Z', 156180617, 'packet'],
-  ['0x1add335785489b1694db14df964790904058ee71c776589a2d35b948f0c679ec', 'CV SolvBTC-27', '2026-10-16T14:40:46Z', 228593609, undefined],
+  ['0x1add335785489b1694db14df964790904058ee71c776589a2d35b948f0c679ec', 'CV SolvBTC-27', '2026-10-16T14:40:46Z', 228593609, 'EINSUFFICIENT_BALANCE'],
   ['0x74e1c6603eeab113f7f631bf2354ec71d01ff0771ab26dfe1ffe1777a841c158', 'CV stBT-WBTCS-28', '2026-10-16T14:40:46Z', 228593609, undefined],
   ['0xbf3d146537360df8b888a7d4cbd1221574c65fca5bb32a85ef958e217fab4c89', 'CV MER-LP-29', '2026-10-16T14:40:46Z', 228593609, 'EINSUFFICIENT_BALANCE'],
   ['0x3e64c7be706cf44d53a5bec6890e03b5ee30dbeeb19f54a562ee839423c48259', 'CV MER-LP-30', '2026-10-16T14:40:46Z', 228593609, 'EINSUFFICIENT_BALANCE'],
   ['0x2dfa9bedad8967951a9400b3f97678fd716e0718899417794940cac7ee2a802f', 'CV MER-LP-31', '2026-10-16T14:40:46Z', 228593609, 'ok'],
-  ['0xf8e39a8e9f492f4e0e2b5e79d4a17f0358ca01165372a0bb2642023ca2c21971', 'CV rsETH-32', '2026-06-16T13:10:56Z', 156181311, undefined],
+  ['0xf8e39a8e9f492f4e0e2b5e79d4a17f0358ca01165372a0bb2642023ca2c21971', 'CV rsETH-32', '2026-06-16T13:10:56Z', 156181311, 'ok'],
   ['0x24b7a15cce2a31e7f9c09811f5596b6a1d3a84325a3f224f30f7cb16b7006307', 'CV MER-LP-33', '2026-06-16T13:11:15Z', 156181489, 'ok'],
   ['0xe4dad3f75faf1ee66bd54679c7abf5c1a55089a293fc94a9cbc4964b20ababde', 'CV MOVE-34', '2026-10-16T14:40:46Z', 228593609, undefined],
   ['0x72eb144e97967ecc11d24806f5130a2da9821e61334fabcd6c06ffd51c939b80', 'CV MOVE-35', '2026-10-16T14:40:46Z', 228593609, undefined],
-  ['0xf2e70628de8505d7d72e47af7f46ee45b42183ef4aaf7a32d112e0e7d7c4af12', 'CV MER-LP-36', '2026-10-16T14:40:46Z', 228593609, 'EUNKNOWN_STRATEGY'],
-  ['0x43bdf6df8b54d12a5e4429fda160b8265e15268c385e4f6ebe553b428a86e65a', 'CV MER-LP-37', '2026-10-16T14:40:46Z', 228593609, 'EUNKNOWN_STRATEGY'],
+  ['0xf2e70628de8505d7d72e47af7f46ee45b42183ef4aaf7a32d112e0e7d7c4af12', 'CV MER-LP-36', '2026-10-16T14:40:46Z', 228593609, 'ok'],
+  ['0x43bdf6df8b54d12a5e4429fda160b8265e15268c385e4f6ebe553b428a86e65a', 'CV MER-LP-37', '2026-10-16T14:40:46Z', 228593609, 'ok'],
   ['0xbe3380ced659824ebe840dcefbd0e002c697f2a118f4183b623d66b25e42eb7a', 'CV MER-LP-38', '2026-10-16T14:40:46Z', 228593609, 'EINSUFFICIENT_BALANCE'],
-  ['0xf25b5b551e5081e4ff1e3a24077d2286f5155cd15cd4f35d5c088713cfc31ee9', 'CV MER-LP-39', '2026-10-16T14:40:46Z', 228593609, 'EUNKNOWN_STRATEGY'],
-  ['0x5dba2d26e1d25288662611aadc63d99ff42010d34f45c28b7a17240d4f4e8861', 'CV MER-LP-40', '2026-10-16T14:40:46Z', 228593609, 'EUNKNOWN_STRATEGY'],
-  ['0xf6abb5549cf0f3ed31b3e16f884e403b56633141a9c48e8757f67c56c222b5c6', 'CV MER-LP-41', '2026-10-16T14:40:46Z', 228593609, 'EUNKNOWN_STRATEGY'],
-  ['0x5429dc9f5cb95fdf3cfd3c6529a8ae786e6e93ccd33a2f83ef122b45867c9451', 'CV MER-LP-42', '2026-10-16T14:40:46Z', 228593609, 'EUNKNOWN_STRATEGY'],
+  ['0xf25b5b551e5081e4ff1e3a24077d2286f5155cd15cd4f35d5c088713cfc31ee9', 'CV MER-LP-39', '2026-10-16T14:40:46Z', 228593609, 'ok'],
+  ['0x5dba2d26e1d25288662611aadc63d99ff42010d34f45c28b7a17240d4f4e8861', 'CV MER-LP-40', '2026-10-16T14:40:46Z', 228593609, 'ok'],
+  ['0xf6abb5549cf0f3ed31b3e16f884e403b56633141a9c48e8757f67c56c222b5c6', 'CV MER-LP-41', '2026-10-16T14:40:46Z', 228593609, 'ok'],
+  ['0x5429dc9f5cb95fdf3cfd3c6529a8ae786e6e93ccd33a2f83ef122b45867c9451', 'CV MER-LP-42', '2026-10-16T14:40:46Z', 228593609, 'ok'],
   ['0xbbaa131e8926757ce2ddccf0d806e32e71eeb78185f03f2aaec41f691abc3751', 'CV MER-LP-43', '2026-10-16T14:40:46Z', 228593609, undefined],
   ['0x58eb34c4c995168f69f355b0eb9fb8ca6f4d06d1891fef082877317c38f5edca', 'CV MER-LP-44', '2026-10-16T14:40:46Z', 228593609, 'ok'],
   ['0xf1f5f765dd5c5254712e5cb35b87fd04526bc316a20bc6bea6f16746780da80a', 'CV MOVE-45', '2026-10-16T14:40:46Z', 228593609, 'EINVALID_SHARES_FACTORS'],
   ['0x3ed219ff18a736c4452a71132dd0b1f16911afe2a37ccad9daabb596b8c3d074', 'CV sUSDa-46', '2026-10-16T14:40:46Z', 228593609, 'ok'],
 ] as [string, string, string, number, Check][]).map(([address, name, frozenAt, frozenVersion, check]) => [address, { name, frozenAt, frozenVersion, check }]));
 
+/** The router call Canopy's self-custody withdrawal guide gives per vault (app.canopyhub.xyz/withdrawal-guide, read
+ *  2026-10-28): router::withdraw_fa_with_coin_type<0x1::aptos_coin::AptosCoin> unless listed here; every call takes
+ *  (vault, strategies [], packets [], shares, max loss some(100) bps, min out some(0)). */
+const APT_COIN = '0x1::aptos_coin::AptosCoin';
+const LS_RSETH_WETH_LP = '0x3851f155e7fc5ec98ce9dbcaf04b2cb0521c562463bd128f9d1331b38c497cf3::lp_coin::LP<0x4763c5cfde8517f48e930f7ece14806d75b98ce31b0b4eab99f49a067f5b5ef2::wrapped::RSETH, 0x4763c5cfde8517f48e930f7ece14806d75b98ce31b0b4eab99f49a067f5b5ef2::wrapped::WETHe, 0xd5367fdfa219cb0a108c7751cdbfbb02bfcb71ea932c33007b10a05ae5502500::curves::Stable>';
+/** The Meridian package whose placeholder coin types the guide gives for Meridian pool vaults. */
+const MERIDIAN_COINS = '0xf73752aa1c98d49c611db48b4e77618c5b1ff7d0819d50c28d30838ad5a55a91';
+const DEFAULT_CALL = { fn: 'withdraw_fa_with_coin_type', types: [APT_COIN] };
+const WITHDRAW_CALLS = new Map<string, { fn: string; types: string[] }>(([
+  ['0xf2e70628de8505d7d72e47af7f46ee45b42183ef4aaf7a32d112e0e7d7c4af12', 'withdraw_fa_with_coin_type', [`${MERIDIAN_COINS}::coins::Coin4`]],   // USDC-wETH
+  ['0x5429dc9f5cb95fdf3cfd3c6529a8ae786e6e93ccd33a2f83ef122b45867c9451', 'withdraw_fa_with_coin_type', [`${MERIDIAN_COINS}::coins::Coin7`]],   // USDa-USDT
+  ['0xf25b5b551e5081e4ff1e3a24077d2286f5155cd15cd4f35d5c088713cfc31ee9', 'withdraw_fa_with_coin_type', [`${MERIDIAN_COINS}::coins::Coin2`]],   // MOVE-USDC
+  ['0xbe3380ced659824ebe840dcefbd0e002c697f2a118f4183b623d66b25e42eb7a', 'withdraw_fa_with_coin_type', [`${MERIDIAN_COINS}::coins::Coin8`]],   // sUSDa-USDa
+  ['0xefa4b39d3cd87b5f24d53d4d54879c90787f282e05d701dfe66942378deeba61', 'withdraw_coin', [LS_RSETH_WETH_LP, LS_RSETH_WETH_LP]],   // LS rsETH-wETH
+  ['0x71c789d396157a54a71e0fe42f82cfee7d210370290a4c14550a13662e4ce75f', 'withdraw_fa_with_coin_type', [`${MERIDIAN_COINS}::coins::Coin1`]],   // USDC.e-USDT.e
+  ['0x43bdf6df8b54d12a5e4429fda160b8265e15268c385e4f6ebe553b428a86e65a', 'withdraw_fa_with_coin_type', [`${MERIDIAN_COINS}::coins::Coin5`]],   // USDC-WBTC
+  ['0xf1f5f765dd5c5254712e5cb35b87fd04526bc316a20bc6bea6f16746780da80a', 'withdraw_coin', [APT_COIN, APT_COIN]],   // Korean Blockchain Week MOVE Lending
+  ['0x5dba2d26e1d25288662611aadc63d99ff42010d34f45c28b7a17240d4f4e8861', 'withdraw_fa_with_coin_type', [`${MERIDIAN_COINS}::coins::Coin6`]],   // MOVE-WETH
+  ['0xf6abb5549cf0f3ed31b3e16f884e403b56633141a9c48e8757f67c56c222b5c6', 'withdraw_fa_with_coin_type', [`${MERIDIAN_COINS}::coins::Coin3`]],   // MOVE-USDT
+  ['0x58eb34c4c995168f69f355b0eb9fb8ca6f4d06d1891fef082877317c38f5edca', 'withdraw_fa_with_coin_type', [`${MERIDIAN_COINS}::coins::Coin9`]],   // LBTC-WBTC
+  ['0x58739edcac2f86e62342466f20809b268430aedf32937eba32eaac7e0bbf5233', 'withdraw_coin', [APT_COIN, APT_COIN]],   // MOVE Simple Lending
+] as [string, string, string[]][]).map(([vault, fn, types]) => [vault, { fn, types }]));
+
 const BLOCKED: Record<string, string> = {
-  EINVALID_SHARES_FACTORS: 'Withdrawing aborts in the vault (EINVALID_SHARES_FACTORS, simulated 2026-10-21): its strategy reports far less than the vault lent it.',
-  EINSUFFICIENT_BALANCE: 'Withdrawing aborts: the vault\'s strategy cannot pay it out (EINSUFFICIENT_BALANCE, simulated 2026-10-21).',
-  EUNKNOWN_STRATEGY: 'Withdrawing aborts: Canopy\'s router does not support the vault\'s strategy (EUNKNOWN_STRATEGY, simulated 2026-10-21).',
+  EINVALID_SHARES_FACTORS: 'Withdrawing aborts in the vault (EINVALID_SHARES_FACTORS, simulated 2026-10-28 with the call Canopy\'s withdrawal guide gives): its strategy reports far less than the vault lent it.',
+  EINSUFFICIENT_BALANCE: 'Withdrawing aborts: the vault\'s strategy cannot pay it out (EINSUFFICIENT_BALANCE, simulated 2026-10-28 with the call Canopy\'s withdrawal guide gives).',
 };
 
 /** Display identity of the vaults' assets other than MOVE (symbol from the vault's name, decimals from the vault). */
@@ -203,11 +227,8 @@ async function read(ctx: ReadContext, ownerInput: string, hint?: CanopyFrozenHin
         // A withdrawal that needs the operator's price packet is team-gated (left-behind.md), with its payout kept.
         const status = blocked ? 'blocked' : check === 'packet' ? 'team_gated' : check ? 'recoverable' : 'unknown';
         return await Promise.all(parts.map(async (part): Promise<Position> => {
-          const [[assets], [map]] = await Promise.all([
-            ctx.chain.view(`${CANOPY_VAULTS}::vault::shares_to_amount`, [vault.address, part.shares], [], version),
-            ctx.chain.view(`${CANOPY_ROUTER}::withdraw::get_withdrawal_map_view`, [vault.address, part.shares], [], version),
-          ]);
-          const strategies = ((map as any).data as any[]).map(e => normalizeAddress(e.key.inner));
+          const [assets] = await ctx.chain.view(`${CANOPY_VAULTS}::vault::shares_to_amount`, [vault.address, part.shares], [], version);
+          const call = WITHDRAW_CALLS.get(vault.address) ?? DEFAULT_CALL;
           const value = [{ asset: `movement:${vault.asset}`, raw: String(assets) }];
           if (part.secondary) return {
             ...positionIds(SOURCE, owner, part.locator, 'principal', value[0].asset), source: SOURCE, owner, locator: part.locator, positionKind: 'principal',
@@ -227,8 +248,8 @@ async function read(ctx: ReadContext, ownerInput: string, hint?: CanopyFrozenHin
             confidence: 'verified_view', observedAt: iso(ctx.ledger.timestampSecs),
             steps: [
               ...(part.unstake ? [{ function: `${CANOPY_REWARDS}::multi_rewards::withdraw`, arguments: [token, part.shares], prerequisites: [], expectedOutputs: [] }] : []),
-              { function: `${CANOPY_ROUTER}::router::withdraw_fa`,
-                arguments: [vault.address, JSON.stringify(strategies), JSON.stringify(strategies.map(() => '0x')), part.shares, 'some(10)', 'none'],
+              { function: `${CANOPY_ROUTER}::router::${call.fn}<${call.types.join(', ')}>`,
+                arguments: [vault.address, '[]', '[]', part.shares, 'some(100)', 'some(0)'],
                 prerequisites: check === 'packet' ? ['A MovePosition price packet for the strategy (the Canopy app supplies it).'] : [], expectedOutputs: value },
             ],
           };
@@ -249,19 +270,21 @@ export const canopyFrozenVaults: SourceDef<CanopyFrozenHint> = {
   chain: 'movement',
   protocol: 'Canopy',
   title: 'Canopy vaults closed to deposits',
-  summary: 'Canopy (Movement) closed its vaults to new deposits. Shares left in them, in the wallet or staked for rewards, count; most cannot be withdrawn today.',
+  summary: 'Canopy (Movement) closed its vaults to new deposits and is retiring its app on 2026-12-22. Shares left in them, in the wallet or staked for rewards, count; withdrawing works for most vaults, but aborts for some.',
   category: 'closed_app',
   inclusionRule: 'R2: Canopy froze the vault (deposit limit set to 0, or paused; decided 2026-10-21 to count as closed). R4: a vault share carries no debt.',
   protocolStatus: {
-    state: 'deprecated',
-    evidence: 'Canopy\'s admin multisig set every vault\'s deposit limit to 0: 42 vaults on 2026-10-16 (one transaction), 4 on 2026-06-16, 1 later on 2026-10-16 (SetDepositLimit events). Movement acquired Canopy in May 2026.',
-    checkedAt: '2026-10-21',
+    state: 'wound_down',
+    evidence: 'Canopy\'s admin multisig set every vault\'s deposit limit to 0: 42 vaults on 2026-10-16 (one transaction), 4 on 2026-06-16, 1 later on 2026-10-16 (SetDepositLimit events). Canopy\'s notice (app.canopyhub.xyz/maintenance-mode, read 2026-10-28): maintenance-only mode, new deposits closed as of 2026-10-19, the app and active support retire on 2026-12-22; the vault contracts stay live and withdraw-capable, with no withdrawal deadline, and a self-custody withdrawal guide gives the calls. Movement acquired Canopy in May 2026.',
+    checkedAt: '2026-10-28',
   },
   refresh: { nonZero: 'monthly', zero: 'monthly' },
+  // 2: statuses and steps follow the withdrawal guide's call (simulated 2026-10-28); every owner is re-read once.
+  version: 2,
   headlineAgeBases: ['protocol_closure'],
   howTo: [
     `If your shares are staked: ${CANOPY_REWARDS}::multi_rewards::withdraw(shares token, amount).`,
-    `Then ${CANOPY_ROUTER}::router::withdraw_fa(vault, strategies, strategy data, shares, some(10), minimum out), with the strategies from router::withdraw::get_withdrawal_map_view, or withdraw in the Canopy app.`,
+    `Then ${CANOPY_ROUTER}::router::withdraw_fa_with_coin_type<0x1::aptos_coin::AptosCoin>(vault, [], [], shares, some(100), some(0)); some vaults take another call (Canopy\'s guide lists it per vault: app.canopyhub.xyz/withdrawal-guide). Or withdraw in the Canopy app until 2026-12-22.`,
   ],
   read,
 };
