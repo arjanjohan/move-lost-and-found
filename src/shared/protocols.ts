@@ -66,6 +66,8 @@ export const PROTOCOLS: ProtocolEntry[] = [
     reason: 'Repository archived 2025-09-08 and no trading since: coins left idle in market accounts.', sources: ['econia-idle-accounts'], defillama: 'econia', dead: '2025-09-08' },
   { id: 'movement-native-staking', name: 'Movement native staking', chains: [...M], category: 'Staking', status: 'implemented', checkedAt: '2026-10-20',
     reason: 'Unstaked MOVE whose lockup ended, and stake left with validators that left the set.', sources: ['movement-native-delegation', 'movement-inactive-validator'] },
+  { id: 'moveposition', name: 'MovePosition', chains: [...M], category: 'Lending', status: 'implemented', checkedAt: '2026-10-29',
+    reason: 'Deposits and borrows closed 2026-10-19, app retiring 2026-12-22: deposits left behind, team-gated (every withdrawal needs a packet its service signs), by depositors without loans.', sources: ['moveposition-wound-down'], issue: 60, defillama: 'moveposition' },
   { id: 'canopy', name: 'Canopy', chains: [...M], category: 'Yield Aggregator', status: 'implemented', checkedAt: '2026-10-28',
     reason: 'Maintenance-only mode: deposits closed 2026-10-19, app retiring 2026-12-22, contracts stay withdraw-capable. Staking rewards from reward periods that ended, never claimed; and shares left in vaults Canopy closed to deposits (2026-06 and 2026-10).', sources: ['canopy-ended-rewards', 'canopy-frozen-vaults'], defillama: 'canopy' },
 
@@ -112,10 +114,8 @@ export const PROTOCOLS: ProtocolEntry[] = [
     reason: 'Ended reward programs; Echelon holds only ~$3.6K (Aptos) and ~$2.1K of MOVE (Movement) to pay them.' },
 
   // Not left behind
-  { id: 'superposition', name: 'Superposition', chains: [...A], category: 'Lending', status: 'not_left_behind', checkedAt: '2026-10-19',
-    reason: 'Markets unpaused and still used; withdrawals take a packet its service still signs.', defillama: 'superposition' },
-  { id: 'moveposition', name: 'MovePosition', chains: [...M], category: 'Lending', status: 'not_left_behind', checkedAt: '2026-10-20',
-    reason: 'Live: its service still signs withdrawal packets.', defillama: 'moveposition' },
+  { id: 'superposition', name: 'Superposition', chains: [...A], category: 'Lending', status: 'not_left_behind', checkedAt: '2026-10-29',
+    reason: 'Markets unpaused, deposit caps open and no wind-down notice (MovePosition, its Movement deployment, is retiring); withdrawals take a packet its service still signs.', defillama: 'superposition' },
   { id: 'joule-finance', name: 'Joule Finance', chains: [...A, ...M], category: 'Lending', status: 'not_left_behind', checkedAt: '2026-10-22',
     reason: 'Live on both chains (app.joule.finance serves both; on Movement, joule-core deposits until 2026-09-27); withdrawals need paid Pyth price updates, a cost of using it, not a closure.', defillama: 'joule-finance' },
   { id: 'ditto', name: 'Ditto', chains: [...A], category: 'Liquid Staking', status: 'not_left_behind', checkedAt: '2026-10-19',

@@ -17,6 +17,7 @@ import { KAPT, STKAPT } from '../shared/sources/kofi-receipts.ts';
 import { KOFI } from '../shared/sources/kofi-withdrawals.ts';
 import { CAKE, type ClaimableHint, claimableHandle, LZ_COINS } from '../shared/sources/layerzero-claimable.ts';
 import { MKLP } from '../shared/sources/merkle-mklp.ts';
+import { MOVEPOSITION } from '../shared/sources/moveposition-wound-down.ts';
 import { chefState, MASTERCHEF } from '../shared/sources/pancake-farm.ts';
 import { poolState, SMART_CHEF, SYRUP_POOLS } from '../shared/sources/pancake-syrup.ts';
 import { VEMKL_COLLECTION } from '../shared/sources/merkle-vemkl.ts';
@@ -1162,6 +1163,43 @@ export const echoWoundDownEnumerator: Enumerator = {
   },
 };
 
+// MovePosition: every portfolio in the tenant's registry (tenant::get_portfolios_page_v2, 1,000 a page; 7,301 on
+// 2026-10-29), from the fullnode; the tenant's own fee portfolio is left out. No hint: the age is the close, and deposits
+// stopped with it.
+const MOVEPOSITION_PAGE = 1000;
+export const movepositionWoundDownEnumerator: Enumerator = {
+  sourceId: 'moveposition-wound-down',
+  processor: null,
+  scope: `every portfolio registered in ${MOVEPOSITION}::tenant (get_portfolios_page_v2), except the tenant's own`,
+  async run(chain) {
+    const [len] = await chain.view(`${MOVEPOSITION}::tenant::get_portfolios_len_v2`, []);
+    const owners = new Set<string>();
+    let pages = 1;
+    for (let page = 0; page * MOVEPOSITION_PAGE < Number(len); page++) {
+      const [addresses] = await chain.view(`${MOVEPOSITION}::tenant::get_portfolios_page_v2`, [String(page)]);
+      pages++;
+      for (const a of addresses as string[]) owners.add(normalizeAddress(a));
+    }
+    if (owners.size < Number(len)) throw new Error(`MovePosition registry: ${owners.size} portfolios read of ${len}`);
+    owners.delete(MOVEPOSITION);
+    return { candidates: [...owners].map(owner => ({ owner })), pages };
+  },
+  async sanity(chain, ledger, positions) {
+    // What the positions are owed, per market, cannot exceed what all its depositors are owed (cash plus lent out).
+    let ok = true;
+    const parts: string[] = [];
+    for (const r of await chain.resources(MOVEPOSITION, ledger.version) ?? []) {
+      if (!r.type.startsWith(`${MOVEPOSITION}::broker::Broker<`)) continue;
+      const symbol = r.type.slice(0, -1).split('::').pop()!;
+      const found = sumGross(positions.filter(p => p.locator === symbol || p.locator === `${symbol}/lent-out`));
+      const owed = BigInt(r.data.available) + BigInt(r.data.borrowed);
+      ok &&= found <= owed;
+      if (owed > 0n) parts.push(`${symbol} ${pct(found, owed)}`);
+    }
+    return { check: 'deposits found per market <= broker available + borrowed', ok, detail: parts.join('; ') };
+  },
+};
+
 // Goblin's wiped-out vaults: every holder of their shares, and every account that staked shares in Goblin's MasterChef
 // (senders of masterchef::deposit, or of zap::zap_in_*, which deposit and stake in one call; together they cover each
 // pool's total_amount, checked 2026-10-26). Holders are paged on last_transaction_version: ordering by store or owner
@@ -1236,4 +1274,4 @@ export const thalaVestingEnumerator = entrySenders('thala-vesting-matured',
 export const ENUMERATORS: Enumerator[] = [delegationEnumerator, thalaUnstakeEnumerator, kofiWithdrawalsEnumerator, tortugaTicketsEnumerator,
   amnisWithdrawalsEnumerator, thalaVethlEnumerator, thalaVestingEnumerator, inactiveValidatorEnumerator,
   trufinUnlocksEnumerator, movementDelegationEnumerator, movementInactiveValidatorEnumerator, kofiReceiptsEnumerator,
-  merkleMklpEnumerator, merkleVemklEnumerator, layerzeroClaimableEnumerator, canopyEndedRewardsEnumerator, pancakeSyrupEnumerator, topazBidsEnumerator, pancakeFarmEnumerator, echelonFrozenEnumerator, aaveFrozenEnumerator, econiaIdleEnumerator, auroClosedEnumerator, animeswapClosedEnumerator, earniumClosedEnumerator, houstonClosedEnumerator, echoWoundDownEnumerator, goblinWipedOutEnumerator, canopyFrozenEnumerator];
+  merkleMklpEnumerator, merkleVemklEnumerator, layerzeroClaimableEnumerator, canopyEndedRewardsEnumerator, pancakeSyrupEnumerator, topazBidsEnumerator, pancakeFarmEnumerator, echelonFrozenEnumerator, aaveFrozenEnumerator, econiaIdleEnumerator, auroClosedEnumerator, animeswapClosedEnumerator, earniumClosedEnumerator, houstonClosedEnumerator, echoWoundDownEnumerator, goblinWipedOutEnumerator, canopyFrozenEnumerator, movepositionWoundDownEnumerator];

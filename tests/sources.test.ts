@@ -25,6 +25,7 @@ import { AGE_LIMIT_MS } from '../src/node/state.ts';
 import { kofiWithdrawals } from '../src/shared/sources/kofi-withdrawals.ts';
 import { BTCB, layerzeroClaimable, LZ_COINS } from '../src/shared/sources/layerzero-claimable.ts';
 import { merkleMklp, MKLP } from '../src/shared/sources/merkle-mklp.ts';
+import { MOVEPOSITION, MOVEPOSITION_CLOSED_AT, movepositionWoundDown, noteMarket } from '../src/shared/sources/moveposition-wound-down.ts';
 import { ESMKL, MKL, merkleVemkl, PREMKL } from '../src/shared/sources/merkle-vemkl.ts';
 import { MASTERCHEF, pancakeFarmEndedRewards } from '../src/shared/sources/pancake-farm.ts';
 import { pancakeSyrupEnded, SYRUP_POOLS } from '../src/shared/sources/pancake-syrup.ts';
@@ -1647,6 +1648,65 @@ describe('echo wound down', () => {
     expect(c.calls.filter(x => x.startsWith('view'))).toEqual([]);
     // No cash at all: the whole balance is blocked.
     expect((await echoWoundDown.read(context(chain({ aptCash: '0', held: [APT_R.aToken] })), OWNER)).positions.map(p => [p.locator, p.status])).toEqual([['APT/lent-out', 'blocked']]);
+  });
+});
+
+describe('moveposition wound down', () => {
+  const USDC = `${MOVEPOSITION}::coins::USDC`, NATIVE = '0x1::aptos_coin::AptosCoin', USDC_FA = addr('f0'), FEES = addr('fee'), STRATEGY = addr('57');
+  const hex = (t: string) => '0x' + [...t].map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
+  const note = (name: string, coin: string, balance: string, module = 'broker') =>
+    ({ instrument_balance: balance, instrument_id: { account_address: MOVEPOSITION, module_name: hex(module), struct_name: hex(`${name}<${coin}>`) } });
+  type Opts = { loans?: any[]; deposits?: any[]; paused?: boolean };
+  // OWNER deposits USDC (1,000 notes = 2,000 units; the market: 100 cash, 300 lent out) and MOVE (500 notes = 500 units;
+  // all cash).
+  const chain = (o: Opts = {}) => fakeChain({
+    view: (fn, args, ty) => {
+      if (fn.endsWith('::portfolio::portfolio_view')) return [{ collaterals: o.deposits ?? [note('DepositNote', USDC, '1000'), note('DepositNote', NATIVE, '500'), note('DepositNote', USDC, '0')],
+        liabilities: o.loans ?? [note('LoanNote', USDC, '0')] }];
+      if (fn.endsWith('::broker::calc_coins_from_dnotes')) return [String(BigInt(args[0] as string) * (ty[0] === USDC ? 2n : 1n))];
+      if (fn.endsWith('::broker::calc_coins_from_lnotes')) return [String(BigInt(args[0] as string) * 3n)];
+      if (fn.endsWith('::map::get_metadata')) return [{ inner: USDC_FA }];
+      if (fn === '0x1::fungible_asset::decimals') return [6];
+      throw new Error(fn);
+    },
+    resource: (a, type) => type.endsWith('::tenant::Tenant') ? { liquidation_fee_address: FEES, interest_rate_fee_address: FEES, stability_fee_address: FEES }
+      : type.endsWith('::base_strategy::BaseStrategy') ? (a === STRATEGY ? {} : null)
+      : type.endsWith(`<${USDC}>`) ? { available: '100', borrowed: '300', is_paused: false, is_redeem_paused: o.paused ?? false }
+      : { available: '5000', borrowed: '0', is_paused: false, is_redeem_paused: false },
+  });
+
+  it('reads a note\'s market from its TypeInfo, refusing other packages and modules', () => {
+    expect(noteMarket(note('DepositNote', USDC, '1').instrument_id, 'DepositNote')).toBe(USDC);
+    expect(noteMarket(note('DepositNote', USDC, '1').instrument_id, 'LoanNote')).toBeNull();
+    expect(noteMarket(note('DepositNote', USDC, '1', 'other').instrument_id, 'DepositNote')).toBeNull();
+  });
+
+  it('counts a depositor\'s pro-rata share of the cash as team-gated and the lent-out rest as blocked', async () => {
+    const r = await movepositionWoundDown.read(context(chain()), OWNER);
+    expect(r.complete).toBe(true);
+    expect(r.positions.map(p => [p.locator, p.asset, p.grossClaim[0].raw, p.expectedPayout[0]?.raw, p.status, p.blockers[0].code, p.claimableSince])).toEqual([
+      ['USDC', `movement:${USDC_FA}`, '500', '500', 'team_gated', 'price_packet', MOVEPOSITION_CLOSED_AT],
+      ['USDC/lent-out', `movement:${USDC_FA}`, '1500', undefined, 'blocked', 'insufficient_cash', MOVEPOSITION_CLOSED_AT],
+      ['AptosCoin', MOVE, '500', '500', 'team_gated', 'price_packet', MOVEPOSITION_CLOSED_AT]]);
+    expect(r.positions[0].steps[0]).toMatchObject({ function: `${MOVEPOSITION}::entry_public::redeem_v2<${USDC}>` });
+  });
+
+  it('shows a borrower\'s deposits, blocked by its loans and never counted', async () => {
+    const r = await movepositionWoundDown.read(context(chain({ loans: [note('LoanNote', USDC, '1000000')] })), OWNER);
+    expect(r.positions.map(p => [p.locator, p.grossClaim[0].raw, p.status, p.blockers[0].code, p.expectedPayout])).toEqual([
+      ['USDC', '2000', 'blocked', 'has_debt', []], ['AptosCoin', '500', 'blocked', 'has_debt', []]]);
+    expect(r.positions[0].blockers[0].detail).toMatch(/owes 3 USDC/);
+    const t = sourceTotals(movepositionWoundDown, r.positions, {}, 1_800_000_000);
+    expect(t.face.positions).toBe(0);
+  });
+
+  it('blocks a paused market, reads an empty portfolio as nothing, fails on an unknown note, and leaves out own and Canopy portfolios', async () => {
+    expect((await movepositionWoundDown.read(context(chain({ paused: true })), OWNER)).positions.filter(p => p.locator === 'USDC').map(p => [p.status, p.blockers[0].code]))
+      .toEqual([['blocked', 'paused']]);
+    expect(await movepositionWoundDown.read(context(chain({ deposits: [] })), OWNER)).toMatchObject({ complete: true, positions: [] });
+    expect(await movepositionWoundDown.read(context(chain({ deposits: [note('DepositNote', USDC, '1', 'other')] })), OWNER)).toMatchObject({ complete: false, positions: [] });
+    // MovePosition's own accounts, and a Canopy strategy (counted by canopy-frozen-vaults).
+    for (const own of [MOVEPOSITION, FEES, STRATEGY]) expect((await movepositionWoundDown.read(context(chain()), own))).toMatchObject({ complete: true, positions: [] });
   });
 });
 

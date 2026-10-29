@@ -9,7 +9,7 @@ import { SOURCES } from '../src/shared/sources/index.ts';
 import { ENUMERATORS } from '../src/node/enumerators.ts';
 import { amnisWithdrawalsEnumerator, echoWoundDownEnumerator, goblinWipedOutEnumerator } from '../src/node/enumerators.ts';
 import { GOBLIN_CHEF, GOBLIN_CHEF_ACCOUNT, WIPED_VAULTS } from '../src/shared/sources/goblin-wiped-out.ts';
-import { aaveFrozenEnumerator, animeswapClosedEnumerator, canopyFrozenEnumerator, earniumClosedEnumerator, houstonClosedEnumerator, auroClosedEnumerator, econiaIdleEnumerator, type Enumerator } from '../src/node/enumerators.ts';
+import { aaveFrozenEnumerator, animeswapClosedEnumerator, canopyFrozenEnumerator, movepositionWoundDownEnumerator, earniumClosedEnumerator, houstonClosedEnumerator, auroClosedEnumerator, econiaIdleEnumerator, type Enumerator } from '../src/node/enumerators.ts';
 import { ANIMESWAP_POOLS } from '../src/shared/sources/animeswap-closed.ts';
 import { CANOPY_REWARDS_STATE } from '../src/shared/sources/canopy-rewards.ts';
 import { fetchPrices } from '../src/node/prices.ts';
@@ -20,6 +20,7 @@ import { AAVE, AAVE_UNFROZEN_AT } from '../src/shared/sources/aave-frozen.ts';
 import { STAPT, STHAPT } from '../src/shared/sources/echelon-frozen.ts';
 import { STKAPT } from '../src/shared/sources/kofi-receipts.ts';
 import type { ChainReader, Position, ReadResult, SourceDef } from '../src/shared/types.ts';
+import { MOVEPOSITION } from '../src/shared/sources/moveposition-wound-down.ts';
 import { addr, fakeChain } from './fake-chain.ts';
 
 const freshWatermark = () => ({ processor_status: [{ last_success_version: 99, last_transaction_timestamp: new Date().toISOString().slice(0, -1) }] });
@@ -591,6 +592,22 @@ describe('canopy frozen enumerator', () => {
       { owner: addr(2), hint: { v: { [addr('51')]: '200000000', [addr('53')]: '200000005' }, w: '240000000' } },
       { owner: addr(3), hint: { v: { [addr('51')]: '200000006' }, w: '240000000' } },
     ]);
+  });
+});
+
+describe('moveposition enumerator', () => {
+  // 2,001 registered portfolios over three pages (1,000 each), the tenant's own first.
+  const registry = [MOVEPOSITION, ...Array.from({ length: 2000 }, (_, i) => addr(`${i + 1}`))];
+  const chain = (len: number) => fakeChain({ view: (fn, args) => fn.endsWith('::tenant::get_portfolios_len_v2') ? [String(len)]
+    : [registry.slice(Number(args[0]) * 1000, Number(args[0]) * 1000 + 1000)] });
+
+  it('pages the tenant\'s registry and leaves out its own fee portfolio', async () => {
+    const r = await movepositionWoundDownEnumerator.run(chain(2001), undefined);
+    expect([r.candidates.length, r.candidates[0], r.pages]).toEqual([2000, { owner: addr('1') }, 4]);
+  });
+
+  it('fails when the pages hold fewer portfolios than the registry counts', async () => {
+    await expect(movepositionWoundDownEnumerator.run(chain(2002), undefined)).rejects.toThrow(/2001 portfolios read of 2002/);
   });
 });
 
