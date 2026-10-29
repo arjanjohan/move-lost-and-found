@@ -1,6 +1,8 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { snapshot } from '../../lib/data.ts';
+import { Logo } from '../../components/Logo.tsx';
+import { protocolOfSource } from '../../lib/logos.ts';
+import { protocolOf, snapshot } from '../../lib/data.ts';
 import { count, date, units, usd } from '../../lib/format.ts';
 import type { SnapshotSource } from '../../../shared/snapshot.ts';
 import { NETWORKS, type Network } from '../../../shared/chain.ts';
@@ -30,7 +32,7 @@ const basisLabel: Record<string, string> = {
 ---
 <Base title={`${s.title} · Move Lost & Found`} description={s.summary}>
   <p class="muted"><a href="/dashboard">Dashboard</a> / {NETWORKS[s.chain as Network]?.name ?? s.chain} / {s.title}</p>
-  <h1>{s.title}</h1>
+  <h1 class="titled"><span class="first-line"><Logo protocol={protocolOfSource(s.id)?.id} name={protocolOf(s)} size={44} /></span>{s.title}</h1>
   <p>{s.summary}</p>
   <p class="muted">
     Protocol status: {s.protocolStatus.state.replace('_', ' ')} ({s.protocolStatus.evidence})
@@ -123,3 +125,9 @@ const basisLabel: Record<string, string> = {
     </table>
   </div>
 </Base>
+
+<style>
+  /* The logo sits on the title's first line, however many lines it wraps to. */
+  .titled { display: flex; align-items: flex-start; gap: 14px; }
+  .first-line { display: flex; align-items: center; flex: none; height: 1.1em; }
+</style>

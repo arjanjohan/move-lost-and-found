@@ -66,6 +66,7 @@ Node 24.22.1 (`.nvmrc`), pnpm 9.
 pnpm install
 pnpm test && pnpm typecheck
 GEOMI_API_KEY=… pnpm snapshot --limit 50   # small run; writes snapshot/latest.json, state in state/
+pnpm logos                                 # protocol logos into public/logos (keeps existing files)
 pnpm dev
 ```
 

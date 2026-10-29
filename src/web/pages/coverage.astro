@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import { Logo } from '../components/Logo.tsx';
 import { snapshot } from '../lib/data.ts';
 import { date } from '../lib/format.ts';
 import { REPO } from '../lib/site.ts';
@@ -65,8 +66,8 @@ const chainName = { aptos: 'Aptos', movement: 'Movement' } as const;
               {rows.map(p => (
                 <tr data-chains={p.chains.join(' ')}>
                   <td>
-                    {p.name}
-                    <div class="muted">{p.chains.map(c => chainName[c]).join(', ')} · {p.category}{p.dead && <> · <span title="DefiLlama marks this protocol dead">dead on DefiLlama{p.dead !== 'yes' ? ` since ${p.dead}` : ''}</span></>}</div>
+                    <span class="named"><Logo protocol={p.id} name={p.name} />{p.name}</span>
+                    <div class="muted indent">{p.chains.map(c => chainName[c]).join(', ')} · {p.category}{p.dead && <> · <span title="DefiLlama marks this protocol dead">dead on DefiLlama{p.dead !== 'yes' ? ` since ${p.dead}` : ''}</span></>}</div>
                   </td>
                   <td>
                     {p.reason}
@@ -116,6 +117,7 @@ const chainName = { aptos: 'Aptos', movement: 'Movement' } as const;
   th:first-child { width: 30%; }
   th:last-child { width: 7.5em; }
   td:last-child { white-space: nowrap; }
+  .indent { padding-left: 28px; }
   .links { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 13px; }
   section { margin-top: 32px; }
 </style>

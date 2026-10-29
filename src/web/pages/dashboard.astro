@@ -1,7 +1,9 @@
 ---
 import Donut from '../components/Donut.astro';
+import { Logo } from '../components/Logo.tsx';
 import Base from '../layouts/Base.astro';
-import { byProtocol, snapshot } from '../lib/data.ts';
+import { byProtocol, protocolOf, snapshot } from '../lib/data.ts';
+import { protocolOfSource } from '../lib/logos.ts';
 import { count, date, units, usd } from '../lib/format.ts';
 import { NETWORKS, type Network } from '../../shared/chain.ts';
 
@@ -114,7 +116,7 @@ const views = [
               <tbody>
                 {[...v.sources].sort((a, b) => b.totals.headline.usd - a.totals.headline.usd).map(s => (
                   <tr>
-                    <td><a href={`/source/${s.id}`}>{s.title}</a><div class="muted">{NETWORKS[s.chain as Network]?.name ?? s.chain}</div></td>
+                    <td><span class="named"><Logo protocol={protocolOfSource(s.id)?.id} name={protocolOf(s)} /><a href={`/source/${s.id}`}>{s.title}</a></span><div class="muted indent">{NETWORKS[s.chain as Network]?.name ?? s.chain}</div></td>
                     <td class="num">{usd(s.totals.headline.usd)}</td>
                     <td class="num">{count(s.totals.headline.owners)}</td>
                     <td class="num">{usd(s.totals.byStatus.recoverable.usd)}</td>
@@ -158,6 +160,7 @@ const views = [
 <style>
   .toggle { display: inline-flex; background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 3px; margin-bottom: 20px; }
   .updated { margin: 12px 0 0; }
+  .indent { padding-left: 28px; }
   .updated + h2 { margin-top: 36px; }
   .stack { display: grid; }
   .stack > .pane { grid-area: 1 / 1; }
