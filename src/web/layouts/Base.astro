@@ -108,6 +108,7 @@ import Mark from '../components/Mark.astro';
     --bg: #fbfaf7; --fg: #1d1d1b; --muted: #6b6a66; --line: #e4e1da; --card: #ffffff; --soft: #f3f1ec;
     --accent: #1f6f5c; --accent-fg: #ffffff; --warn-bg: #fff4d6; --warn-fg: #6b4e00; --bad: #a33a2a;
     --c1: #1f6f5c; --c2: #d08a2c; --c3: #3b6fb6; --c4: #b5483a; --c5: #7a5bb3; --c6: #4c9a8a; --c7: #a6763c; --c8: #9a9890;
+    --mono-bg: 88%; --mono-fg: 32%;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
@@ -115,6 +116,7 @@ import Mark from '../components/Mark.astro';
       --bg: #141413; --fg: #ecebe6; --muted: #9b9a94; --line: #2c2b28; --card: #1c1b19; --soft: #22211e;
       --accent: #5fc2a6; --accent-fg: #10221d; --warn-bg: #3a2f10; --warn-fg: #f3d58a; --bad: #e07b6a;
       --c1: #5fc2a6; --c2: #e3a34c; --c3: #6f9fe0; --c4: #e07b6a; --c5: #a98be0; --c6: #7cc4b4; --c7: #c99a5e; --c8: #77756e;
+      --mono-bg: 26%; --mono-fg: 80%;
       color-scheme: dark;
     }
   }
@@ -122,6 +124,7 @@ import Mark from '../components/Mark.astro';
     --bg: #141413; --fg: #ecebe6; --muted: #9b9a94; --line: #2c2b28; --card: #1c1b19; --soft: #22211e;
     --accent: #5fc2a6; --accent-fg: #10221d; --warn-bg: #3a2f10; --warn-fg: #f3d58a; --bad: #e07b6a;
     --c1: #5fc2a6; --c2: #e3a34c; --c3: #6f9fe0; --c4: #e07b6a; --c5: #a98be0; --c6: #7cc4b4; --c7: #c99a5e; --c8: #77756e;
+    --mono-bg: 26%; --mono-fg: 80%;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
@@ -187,6 +190,11 @@ import Mark from '../components/Mark.astro';
   .button.ghost:hover { background: var(--soft); }
   button.link { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); text-decoration: underline; cursor: pointer; }
   code { font-size: 13px; overflow-wrap: anywhere; }
+
+  /* Protocol logos: a white disc keeps dark logos visible in dark mode; the monogram's hue comes from the name. */
+  .logo { display: inline-block; flex: none; border-radius: 50%; background: #fff; object-fit: cover; vertical-align: middle; box-shadow: 0 0 0 1px var(--line); }
+  .logo.mono { display: inline-grid; place-items: center; background: hsl(var(--h) 30% var(--mono-bg)); color: hsl(var(--h) 45% var(--mono-fg)); font-weight: 700; line-height: 1; }
+  .named { display: inline-flex; align-items: center; gap: 8px; }
 
   /* Rendered markdown (docs pages). */
   /* Text keeps a readable measure; tables may use the full width. */

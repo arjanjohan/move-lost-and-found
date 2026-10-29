@@ -1,6 +1,8 @@
 ---
 import Base from '../layouts/Base.astro';
-import { snapshot } from '../lib/data.ts';
+import { Logo } from '../components/Logo.tsx';
+import { protocolOf, snapshot } from '../lib/data.ts';
+import { protocolOfSource } from '../lib/logos.ts';
 import { count, usd } from '../lib/format.ts';
 import { REPO } from '../lib/site.ts';
 import { NETWORKS, type Network } from '../../shared/chain.ts';
@@ -70,7 +72,7 @@ const faq = [
         {sources.map(s => (
           <li>
             <a href={`/source/${s.id}`}>
-              <span class="case-title">{s.title}</span>
+              <span class="case-title named"><Logo protocol={protocolOfSource(s.id)?.id} name={protocolOf(s)} />{s.title}</span>
               <span class="case-meta">{NETWORKS[s.chain as Network]?.name ?? s.chain} · {meta(s)}</span>
               <span class="case-text">{s.summary}</span>
             </a>

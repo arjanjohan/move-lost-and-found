@@ -9,6 +9,8 @@ import { APT } from '../../shared/sources/delegation.ts';
 import { SOURCES } from '../../shared/sources/index.ts';
 import type { Memo, Position, ReadContext, ReadResult } from '../../shared/types.ts';
 import { date, short, units, usd } from '../lib/format.ts';
+import { protocolOfSource } from '../lib/logos.ts';
+import { Logo } from './Logo.tsx';
 
 /** Wallets the public Aptos API serves one browser in one 5-minute rate-limit window, so a check never waits. The
  *  fullnode decides it: 40,000 compute units per IP per window, and a wallet's reads cost ~17–27K (21–43 calls at ~680
@@ -236,7 +238,7 @@ function PositionRow({ p, prices, displays }: { p: Position; prices: PriceBook; 
   return (
     <div style={{ borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 12 }}>
       <div><b style={{ display: 'inline', fontSize: 16 }}>{amount}</b>{value !== null && <span className="muted"> ≈ {usd(value)}</span>}{owedOnly && amount && <span className="muted"> owed</span>} · {STATUS[p.status]}</div>
-      <div>{source.title} <span className="muted">· {NETWORKS[source.chain].name}</span></div>
+      <div><span className="named"><Logo protocol={protocolOfSource(source.id)?.id} name={source.protocol} size={18} />{source.title}</span> <span className="muted">· {NETWORKS[source.chain].name}</span></div>
       <div className="muted">
         {p.ageBasis === 'unknown' ? 'Claimable since: unknown' : `Claimable since ${date(p.claimableSince)}${p.ageBasis === 'position_interaction' ? ' (estimate)' : ''}`}
         {p.blockers.map(b => ` · ${b.detail}`)}
