@@ -19,6 +19,7 @@ import { kofiWithdrawals } from './kofi-withdrawals.ts';
 import { layerzeroClaimable } from './layerzero-claimable.ts';
 import { merkleMklp } from './merkle-mklp.ts';
 import { merkleVemkl } from './merkle-vemkl.ts';
+import { movepositionWoundDown } from './moveposition-wound-down.ts';
 import { pancakeFarmEndedRewards } from './pancake-farm.ts';
 import { pancakeSyrupEnded } from './pancake-syrup.ts';
 import { thalaVestingMatured, thalaVethlExpired } from './thala-thl.ts';
@@ -29,4 +30,4 @@ import { trufinUnlocks } from './trufin-unlocks.ts';
 import { wormholeUnredeemed } from './wormhole-unredeemed.ts';
 
 export const SOURCES: SourceDef<any>[] = [delegation, delegationInactiveValidator, thalaUnstake, kofiWithdrawals, tortugaTickets, amnisWithdrawals, thalaVethlExpired, thalaVestingMatured, trufinUnlocks, kofiReceipts, merkleMklp, merkleVemkl, layerzeroClaimable, pancakeSyrupEnded, pancakeFarmEndedRewards, topazBids, echelonFrozenMarkets, aaveFrozenReserves, econiaIdleAccounts, auroClosedPositions, animeswapClosedLp, earniumClosedLp, houstonClosedLp, echoWoundDown, goblinWipedOut, ariesWoundDown, wormholeUnredeemed,
-  movementDelegation, movementInactiveValidator, canopyEndedRewards, canopyFrozenVaults];
+  movementDelegation, movementInactiveValidator, canopyEndedRewards, canopyFrozenVaults, movepositionWoundDown];

@@ -44,6 +44,14 @@ const COINGECKO = [
   { asset: ECHO_WRAPPED[`${ECHO}::fa_coin::XBTC`], id: 'okx-wrapped-btc', decimals: 8 },
   // Kelp's rsETH on Movement (Canopy's rsETH vaults); CoinGecko lists this exact address under its Movement platform.
   { asset: `movement:${RSETH}`, id: 'kelp-dao-restaked-eth', decimals: 8 },
+  // Movement assets MovePosition's markets (and Canopy's vaults) pay; each id's Movement platform lists this exact
+  // address (checked 2026-10-29). savUSD's id does too, but its last quote is from 2026-08-09.
+  { asset: 'movement:0x83121c9f9b0527d1f056e21a950d6bf3b9e9e2e8353d0e95ccea726713cbea39', id: 'movement-bridged-usdc-movement', decimals: 6 },
+  { asset: 'movement:0x447721a30109c662dde9c73a0c2c9c9c459fb5e5a9c92f03c50fa69737f5d08d', id: 'movement-bridged-usdt-movement', decimals: 6 },
+  { asset: 'movement:0x908828f4fb0213d4034c3ded1630bbd904e8a3a6bf3c63270887f0b06653a376', id: 'movement-bridged-weth-movement', decimals: 8 },
+  { asset: 'movement:0xba11833544a2f99eec743f41a228ca6ffa7f13c3b6b04681d5a79a8b75ff225e', id: 'usdcx-movement', decimals: 6 },
+  { asset: 'movement:0x0658f4ef6f76c8eeffdc06a30946f3f06723a7f9532e2413312b2a612183759c', id: 'lombard-staked-btc', decimals: 8 },
+  { asset: 'movement:0x2f6af255328fe11b88d840d1e367e946ccd16bd7ebddd6ee7e2ef9f7ae0c53ef', id: 'renzo-restaked-eth', decimals: 8 },
 ];
 
 export async function fetchPrices(nowSecs: number, aptos: ChainReader): Promise<{ prices: PriceBook; errors: string[] }> {
