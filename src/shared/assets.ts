@@ -6,7 +6,7 @@ import { AMAPT_COIN } from './sources/auro-closed.ts';
 import { CANOPY_ASSETS } from './sources/canopy-frozen.ts';
 import { APT, MOVE } from './sources/delegation.ts';
 import { EDOG, GUI } from './sources/econia-idle.ts';
-import { ECHO_RESERVES } from './sources/echo-wound-down.ts';
+import { ECHO_RESERVES, ECHO_WRAPPED } from './sources/echo-wound-down.ts';
 import { HOUSTON_COINS } from './sources/houston-closed.ts';
 import { FROZEN_MARKETS } from './sources/echelon-frozen.ts';
 import { KAPT, STKAPT } from './sources/kofi-receipts.ts';
@@ -38,8 +38,9 @@ export const ASSETS: Record<string, { symbol: string; decimals: number }> = {
   ...Object.fromEntries(ANIMESWAP_COINS.map(c => [c.coin, { symbol: c.symbol, decimals: c.decimals }])),
   // Coins in HoustonSwap's pools.
   ...Object.fromEntries(HOUSTON_COINS.map(c => [c.coin, { symbol: c.symbol, decimals: c.decimals }])),
-  // Coins Echo's lending reserves pay that no other source lists (APT and the LayerZero coins are above).
-  ...Object.fromEntries(ECHO_RESERVES.filter(r => !r.coin.startsWith('0x1::') && !r.coin.startsWith('0xf22bede2')).map(r => [r.coin, { symbol: r.symbol, decimals: r.decimals }])),
+  // Coins Echo's lending reserves pay that no other source lists (APT and the LayerZero coins are above; Echo's wrapper
+  // coins pay the token they wrap, which the chain describes).
+  ...Object.fromEntries(ECHO_RESERVES.filter(r => !r.coin.startsWith('0x1::') && !r.coin.startsWith('0xf22bede2') && !ECHO_WRAPPED[r.coin]).map(r => [r.coin, { symbol: r.symbol, decimals: r.decimals }])),
   // Assets of Canopy's vaults (Movement).
   ...Object.fromEntries(CANOPY_ASSETS.map(c => [c.asset, { symbol: c.symbol, decimals: c.decimals }])),
 };

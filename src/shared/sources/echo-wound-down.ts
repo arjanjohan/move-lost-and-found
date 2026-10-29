@@ -44,6 +44,33 @@ export const ECHO_RESERVES = ([
 
 export type EchoReserve = (typeof ECHO_RESERVES)[number];
 
+/** Echo's wrapper coins (`fa_coin`) → the token each wraps 1:1 (`asset_wrapper::AssetList`, read 2026-10-29).
+ *  `router_fa::withdraw` unwraps in the same call and pays that token (simulated 2026-10-29: an xBTC and a TruAPT lender
+ *  were paid OKX xBTC and TruFin truAPT); `router::withdraw_simple` pays Echo's coin instead. */
+export const ECHO_WRAPPED: Record<string, string> = {
+  [`${ECHO}::fa_coin::EAPT`]: '0x8a7403ae3d95f181761cf36742680442c698b49e047350b77a8906ec5168bdae',
+  [`${ECHO}::fa_coin::USDT`]: '0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b',
+  [`${ECHO}::fa_coin::USDC`]: '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b',
+  [`${ECHO}::fa_coin::TruAPT`]: '0xaef6a8c3182e076db72d64324617114cacf9a52f28325edc10b483f7f05da0e7',
+  [`${ECHO}::fa_coin::XBTC`]: '0x81214a80d82035a190fcb76b6ff3c0145161c3a9f33d137f2bbaee4cfec8a387',
+};
+/** The account holding the wrapped tokens; it held exactly each wrapper coin's supply on 2026-10-29. */
+export const ECHO_WRAPPER = '0x6420f913c33dde94cabb135d1bd8db56f229bda3f81e409b854632a734dcae59';
+
+/** What a withdrawal from the reserve pays: the wrapped token for Echo's wrapper coins, else the coin itself. */
+export const payoutAsset = (r: EchoReserve) => ECHO_WRAPPED[r.coin] ?? assetOf(r.coin);
+
+/** A wrapper coin is paid as its token only while the wrapper's account holds the coin's whole supply in it (checked
+ *  once per ledger version); otherwise the read fails rather than value the coin as a token it cannot be unwrapped into. */
+const wrapperCovered = (ctx: ReadContext, r: EchoReserve) => once(ctx, `echo-wrapper:${r.coin}:${ctx.ledger.version}`, async () => {
+  const [[held], [supply]] = await Promise.all([
+    ctx.chain.view('0x1::primary_fungible_store::balance', [ECHO_WRAPPER, ECHO_WRAPPED[r.coin]], ['0x1::fungible_asset::Metadata'], ctx.ledger.version),
+    ctx.chain.view('0x1::coin::supply', [], [r.coin], ctx.ledger.version),
+  ]);
+  const total = BigInt((supply as { vec: string[] }).vec[0] ?? 0);
+  if (BigInt(held) < total) throw new Error(`Echo's wrapper holds ${held} of the ${total} ${r.symbol} its coin's supply needs`);
+});
+
 /** A reserve's cash (what lenders can take out now) and what its lenders are owed in all, once per ledger version. */
 const reserveState = (ctx: ReadContext, r: EchoReserve) => once(ctx, `echo-reserve:${r.aToken}:${ctx.ledger.version}`, async () => {
   const [[cash], [supply]] = await Promise.all([
@@ -68,7 +95,7 @@ async function borrower(ctx: ReadContext, owner: string, supplied: EchoReserve[]
   const positions = supplied.flatMap((r): Position[] => {
     const coins = BigInt(data.get(r)![0]);
     if (coins === 0n) return [];
-    const asset = assetOf(r.coin);
+    const asset = payoutAsset(r);
     return [{
       ...positionIds(SOURCE, owner, r.symbol, 'principal', asset), source: SOURCE, owner, locator: r.symbol, positionKind: 'principal', asset,
       claimableSince: ECHO_CLOSED_AT, ageBasis: 'protocol_closure',
@@ -97,14 +124,17 @@ async function read(ctx: ReadContext, ownerInput: string): Promise<ReadResult> {
     const found = await mapLimit(reserves, 2, async (r): Promise<Position[]> => {
       try {
         // The balance with interest (a_token_factory::balance_of is the scaled balance, without it).
+        const wrapped = ECHO_WRAPPED[r.coin];
         const [[balance], state] = await Promise.all([
           ctx.chain.view(`${ECHO}::pool_data_provider::get_user_reserve_data`, [r.underlying, owner], [], version), reserveState(ctx, r)]);
         const coins = BigInt(balance);
         if (coins === 0n) return [];
+        if (wrapped) await wrapperCovered(ctx, r);
         // The cash is shared by all lenders, so each is counted for its pro-rata share of it when the reserve is short; the
         // rest is lent out, a separate blocked part.
         const withdrawable = state.cash >= state.supply || state.supply === 0n ? coins : coins * state.cash / state.supply;
-        const asset = assetOf(r.coin);
+        const asset = payoutAsset(r);
+        const withdrawAmount = coins <= state.cash ? WITHDRAW_ALL : withdrawable.toString();
         const amount = (raw: bigint) => [{ asset, raw: raw.toString() }];
         const base = { source: SOURCE, owner, positionKind: 'principal' as const, asset, claimableSince: ECHO_CLOSED_AT, ageBasis: 'protocol_closure' as const,
           provenance: { reader: `${ECHO}::pool_data_provider::get_user_reserve_data`, ledgerVersion: version }, payoutBasis: 'view' as const,
@@ -114,10 +144,11 @@ async function read(ctx: ReadContext, ownerInput: string): Promise<ReadResult> {
           ...positionIds(SOURCE, owner, r.symbol, 'principal', asset), ...base, locator: r.symbol,
           grossClaim: amount(withdrawable), expectedPayout: amount(withdrawable), status: 'recoverable', blockers: [],
           // The whole balance while the cash covers it (what the step pays then); otherwise the pro-rata amount, since the
-          // whole balance would abort.
-          steps: [{ function: `${ECHO}::router::withdraw_simple<${r.coin}>`,
-            arguments: [r.underlying, coins <= state.cash ? WITHDRAW_ALL : withdrawable.toString(), owner, 'false'], prerequisites: [],
-            expectedOutputs: amount(coins <= state.cash ? coins : withdrawable) }],
+          // whole balance would abort. A wrapper coin is withdrawn and unwrapped in one call.
+          steps: [{ ...(wrapped
+            ? { function: `${ECHO}::router_fa::withdraw<${r.coin}>`, arguments: [wrapped, r.underlying, withdrawAmount, owner, 'false'] }
+            : { function: `${ECHO}::router::withdraw_simple<${r.coin}>`, arguments: [r.underlying, withdrawAmount, owner, 'false'] }),
+            prerequisites: [], expectedOutputs: amount(coins <= state.cash ? coins : withdrawable) }],
         });
         if (coins > withdrawable) out.push({
           ...positionIds(SOURCE, owner, `${r.symbol}/lent-out`, 'principal', asset), ...base, locator: `${r.symbol}/lent-out`,
@@ -153,10 +184,13 @@ export const echoWoundDown: SourceDef = {
   },
   // The reserves' cash changes as borrowers repay or are liquidated: re-read weekly while the wind-down runs.
   refresh: { nonZero: 'weekly', zero: 'monthly' },
+  // 2: Echo's wrapper coins are paid as the token they wrap, through router_fa::withdraw; every owner is re-read once.
+  version: 2,
   headlineAgeBases: ['protocol_closure'],
   howTo: [
     'Withdraw in the Echo app (echo-protocol.xyz) before 2026-11-19 23:59 UTC, or',
     `call ${ECHO}::router::withdraw_simple<coin>(reserve token, amount, your address, false) from the supplying account; an amount of 2^256 - 1 withdraws everything.`,
+    `For Echo's wrapped tokens (eAPT, USDt, USDC, TruAPT, xBTC), call ${ECHO}::router_fa::withdraw<Echo coin>(token, reserve token, amount, your address, false) instead: it pays the token itself rather than Echo's coin.`,
   ],
   officialUrl: 'https://www.echo-protocol.xyz',
   read,

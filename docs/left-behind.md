@@ -63,7 +63,7 @@ Per position:
 | `positionKind` | `principal`, `fees`, `reward` or `request` |
 | `grossClaim[]` | What the contract records as owed, raw units per asset |
 | `expectedPayout[]` | What recovery pays now (reserve-limited, net of fees); `payoutBasis` is `view`, `derived` or `simulated` |
-| `recoverableUsd` | expectedPayout × price. `priceSource` and `priceAt` are stored; quotes older than 7 days are unpriced; unpriced value is counted separately, never as 0. Prices are CoinGecko quotes checked against the exact asset, except staked-APT receipts without a fresh quote (stAPT, sthAPT): those are valued at redemption, the on-chain exchange rate (less any unstake fee) × the APT quote, dated like the APT quote and labeled `derived`. |
+| `recoverableUsd` | expectedPayout × price. `priceSource` and `priceAt` are stored; quotes older than 7 days are unpriced; unpriced value is counted separately, never as 0. Prices are CoinGecko quotes checked against the exact asset (the id lists that exact address), except staked-APT receipts without a fresh quote (stAPT, sthAPT): those are valued at redemption, the on-chain exchange rate (less any unstake fee) × the APT quote, dated like the APT quote and labeled `derived`. |
 | `status` | Exactly one of `recoverable`, `team_gated` (needs an operator signature or packet), `blocked` (with `blockers[{code, detail}]`), `contract_held` (held by a resource account or an object: counted apart), `unknown` |
 | `confidence` | `verified_view`, `derived_math` or `indexer_only`. `indexer_only` never enters totals. |
 

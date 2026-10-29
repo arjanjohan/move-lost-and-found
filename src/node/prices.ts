@@ -5,6 +5,7 @@ import { AMNIS } from '../shared/sources/amnis-withdrawals.ts';
 import { AMAPT_COIN } from '../shared/sources/auro-closed.ts';
 import { RSETH } from '../shared/sources/canopy-frozen.ts';
 import { APT, MOVE } from '../shared/sources/delegation.ts';
+import { ECHO, ECHO_WRAPPED } from '../shared/sources/echo-wound-down.ts';
 import { AMAPT_FA, MOD, STAPT, STHAPT, WH_USDC } from '../shared/sources/echelon-frozen.ts';
 import { KAPT, STKAPT } from '../shared/sources/kofi-receipts.ts';
 import { KOFI } from '../shared/sources/kofi-withdrawals.ts';
@@ -12,6 +13,8 @@ import { BTCB, CAKE, LZ_BRIDGE } from '../shared/sources/layerzero-claimable.ts'
 import { THL } from '../shared/sources/thala-thl.ts';
 import { THALA_LSD } from '../shared/sources/thala-unstake.ts';
 import type { ChainReader } from '../shared/types.ts';
+
+const USD1 = '0x05fabd1b12e39967a3c24e91b7b8f67719a6dacee74f3c8b9fb7d93e855437d2';
 
 const COINGECKO = [
   { asset: APT, id: 'aptos', decimals: 8 },
@@ -35,6 +38,10 @@ const COINGECKO = [
   { asset: USDT, id: 'tether', decimals: 6 },
   { asset: USDC, id: 'usd-coin', decimals: 6 },
   { asset: SUSDE, id: 'ethena-staked-usde', decimals: 6 },
+  // USD1 (Goblin and Earnium pools) and OKX's xBTC (what Echo's wrapped xBTC pays): the ids list these exact Aptos
+  // addresses (checked 2026-10-29).
+  { asset: USD1, id: 'usd1-wlfi', decimals: 6 },
+  { asset: ECHO_WRAPPED[`${ECHO}::fa_coin::XBTC`], id: 'okx-wrapped-btc', decimals: 8 },
   // Kelp's rsETH on Movement (Canopy's rsETH vaults); CoinGecko lists this exact address under its Movement platform.
   { asset: `movement:${RSETH}`, id: 'kelp-dao-restaked-eth', decimals: 8 },
 ];

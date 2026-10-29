@@ -9,7 +9,7 @@ import { APT, delegation, MOVE, movementDelegation } from '../src/shared/sources
 import { EARNIUM, EARNIUM_CLOSED_AT, earniumClosedLp } from '../src/shared/sources/earnium-closed.ts';
 import { ANIMESWAP, ANIMESWAP_CLOSED_AT, ANIMESWAP_POOLS, animeswapClosedLp, isqrt, pairOf } from '../src/shared/sources/animeswap-closed.ts';
 import { ARIES, ARIES_CLOSED_AT, ariesWoundDown, reserveType } from '../src/shared/sources/aries-wound-down.ts';
-import { ECHO, ECHO_CLOSED_AT, ECHO_RESERVES, echoWoundDown } from '../src/shared/sources/echo-wound-down.ts';
+import { ECHO, ECHO_CLOSED_AT, ECHO_RESERVES, ECHO_WRAPPED, ECHO_WRAPPER, echoWoundDown } from '../src/shared/sources/echo-wound-down.ts';
 import { GOBLIN_CHEF, GOBLIN_CHEF_ACCOUNT, GOBLIN_VAULTS, goblinWipedOut, WIPED_VAULTS } from '../src/shared/sources/goblin-wiped-out.ts';
 import { AURO_CLOSED_AT, AURO_COLLECTION, AURO_DAO, AURO_ROUTER, auroClosedPositions } from '../src/shared/sources/auro-closed.ts';
 import { keccak256 } from '../src/shared/keccak.ts';
@@ -1587,8 +1587,8 @@ describe('wormhole unredeemed', () => {
 });
 
 describe('echo wound down', () => {
-  const [APT_R, USDT_R] = [ECHO_RESERVES.find(r => r.symbol === 'APT')!, ECHO_RESERVES.find(r => r.symbol === 'lzUSDT')!];
-  type Opts = { debt?: string; aptCash?: string; held?: string[]; owesUsdt?: string };
+  const [APT_R, USDT_R, XBTC_R] = ['APT', 'lzUSDT', 'xBTC'].map(s => ECHO_RESERVES.find(r => r.symbol === s)!);
+  type Opts = { debt?: string; aptCash?: string; held?: string[]; owesUsdt?: string; wrapperHeld?: string };
   // OWNER supplies 1,000 APT units (the reserve: 100 cash for 10,000 owed) and 50 USDT units (cash 500 for 400 owed).
   const chain = (o: Opts = {}) => fakeChain({
     gql: () => ({ current_fungible_asset_balances: [...(o.held ?? [APT_R.aToken, USDT_R.aToken]), ...(o.owesUsdt ? [USDT_R.debtToken] : [])]
@@ -1597,6 +1597,9 @@ describe('echo wound down', () => {
       if (fn.endsWith('::user_logic::get_user_account_data')) return ['5', o.debt ?? '0', '0', '0', '0', '0'];
       if (fn.endsWith('::pool_data_provider::get_user_reserve_data')) return args[0] === APT_R.underlying ? ['1000', '0', '0', '0', true]
         : ['50', o.owesUsdt ?? '0', '0', '0', true];
+      // Echo's wrapper account holds the wrapped xBTC (supply 1,000).
+      if (fn === '0x1::primary_fungible_store::balance' && args[0] === ECHO_WRAPPER) return [o.wrapperHeld ?? '1000'];
+      if (fn === '0x1::coin::supply') return [{ vec: ['1000'] }];
       if (fn === '0x1::primary_fungible_store::balance') return [args[1] === APT_R.underlying ? (o.aptCash ?? '100') : '500'];
       if (fn.endsWith('::pool_data_provider::get_a_token_total_supply')) return [args[0] === APT_R.underlying ? '10000' : '400'];
       throw new Error(fn);
@@ -1623,6 +1626,18 @@ describe('echo wound down', () => {
     expect(r.positions[0].blockers[0].detail).toMatch(/owes 1\.2345 lzUSDT/);
     const t = sourceTotals(echoWoundDown, r.positions, { [APT]: { usd: 1, decimals: 8, at: '2026-10-24T00:00:00Z', source: 'test' } }, 1_800_000_000);
     expect([t.face.positions, t.byStatus.blocked.positions, t.faceByStatus!.blocked.positions]).toEqual([0, 0, 0]);
+  });
+
+  it('pays a wrapper coin as the token it wraps, unwrapped in the withdrawal, while the wrapper holds its supply', async () => {
+    const r = await echoWoundDown.read(context(chain({ held: [XBTC_R.aToken] })), OWNER);
+    const xbtc = ECHO_WRAPPED[XBTC_R.coin];
+    expect(r.positions.map(p => [p.locator, p.asset, p.expectedPayout, p.status])).toEqual([['xBTC', xbtc, [{ asset: xbtc, raw: '50' }], 'recoverable']]);
+    expect(r.positions[0].steps[0]).toMatchObject({ function: `${ECHO}::router_fa::withdraw<${XBTC_R.coin}>`,
+      arguments: [xbtc, XBTC_R.underlying, (2n ** 256n - 1n).toString(), OWNER, 'false'] });
+    // The wrapper short of the supply: not read, rather than valued as a token it cannot be unwrapped into.
+    const short = await echoWoundDown.read(context(chain({ held: [XBTC_R.aToken], wrapperHeld: '999' })), OWNER);
+    expect(short).toMatchObject({ complete: false, positions: [] });
+    expect(short.errors[0]).toMatch(/holds 999 of the 1000 xBTC/);
   });
 
   it('leaves out Echo\'s own wallets and owners holding no aToken', async () => {
